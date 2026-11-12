@@ -158,7 +158,7 @@ SLIDES.append(("dark", f'''
       "Raw pin readings found GPIO 34 tied to ground, even with a new joystick; the X axis moved to GPIO 32.",
       "Electrical noise from the cream pump froze Node 1 with its relay closed; a watchdog now resets it into SAFE with every pump off.",
       "Passive buzzers are silent on a plain on/off signal; the alarm needed a real tone.",
-      "The cup sensor’s 2″ strips cover only the top of a 4.5″ cup and are not linear, so the cup uses a multi-point calibration."], "hard")}
+      "The cup sensor’s 2″ strips cover only part of a 4.5″ cup and are not linear, so every sensor uses a multi-point calibration."], "hard")}
   {card("What comes next", "Future enhancements", [
       "Load cell under the cup to pour by weight.",
       "Servo pinch valve so SAFE also closes the outlet.",

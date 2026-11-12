@@ -28,13 +28,14 @@ const int CUP_PIN    = 32;            // ADC1 only: ADC2 reads garbage while the
 const int RGB_PIN[3] = {25, 26, 27};  // R, G, B of a common-anode LED (V pin on 3V3): LOW = on
 
 // ---------- tuning ----------
-// Cup calibration. The cup is 4.5" (114.3 mm) tall but the sensor's strips are only 50.7 mm (2.0")
-// (68.5 mm board minus the 17.8 mm connector), so it is mounted with the top of the strips at the rim
-// and covers 2.5" to 4.5" of water, i.e. 56 % to 100 %. Below 2.5" it reads dry and the cup shows 0 %.
-// The strips are not linear either, so: fill the cup to each height below and put the raw value
-// Node 3 prints on serial ("cup raw=") into CUP_RAW. The values must increase.
-//                    dry  2.5"  3.0"  3.5"  4.0"  4.5"
-const int CUP_PCT[] = {0,   56,   67,   78,   89,  100};
+// Cup calibration. The cup is 4.5" (11.4 cm) tall. The sensor's strips are 5.07 cm long (68.5 mm board
+// minus the 17.8 mm connector) and their top sits 3 cm below the lip, so they cover 3.4 cm to 8.4 cm of
+// water, measured from the inside bottom. The top of the strips is the cup's "full" line (100 %): that
+// leaves 3 cm to carry it, and Node 1 stops pouring at 90 % (about 7.6 cm). Below 3.4 cm the strips are
+// dry and the cup reads 0 %. They are not linear, so: fill the cup to each height below and put the raw
+// value from the dashboard's Test tab (or "cup raw=" on serial) into CUP_RAW. The values must increase.
+//                    dry  3.4cm 4.6cm 5.9cm 7.2cm 8.4cm
+const int CUP_PCT[] = {0,   40,   55,   70,   85,  100};
 const int CUP_RAW[] = {0,  700, 1100, 1400, 1650, 1800};   // calibrate: placeholders
 const int CUP_POINTS = sizeof(CUP_PCT) / sizeof(CUP_PCT[0]);
 const int CUP_SAMPLES = 32;           // averaged per reading: one ADC sample jumps by ~100

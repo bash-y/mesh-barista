@@ -38,8 +38,16 @@ const PourSound POUR_SOUND = POUR_GURGLE;  // while a pump runs: a coffee machin
 
 // ---------- tuning (justify these in the report) ----------
 const float FLOW_ML_PER_S[3]  = {20.0, 20.0, 20.0};  // calibrate: run each pump 10 s into a measuring cup, mL / 10
-const int   LEVEL_RAW_DRY[3]  = {0, 0, 0};           // calibrate: analogRead() of each sensor dry
-const int   LEVEL_RAW_FULL[3] = {1800, 1800, 1800};  // calibrate: analogRead() with each reservoir at its full mark
+// Reservoir levels. Each sensor stands on the bottom of its reservoir, so its 5.07 cm strips see the last
+// 5 cm before the pump runs dry: 100 % = 5 cm of liquid or more, 0 % = empty. The strips are not linear,
+// so fill each reservoir to the heights below (from the inside bottom) and put the raw values from the
+// dashboard's Test tab into LEVEL_RAW, one row per reservoir. Each row must increase.
+//                                dry  1.3cm 2.5cm 3.8cm 5.1cm
+const int   LEVEL_PCT[5]       = {0,   25,   50,   75,  100};
+const int   LEVEL_RAW[3][5]    = {{0, 900, 1300, 1600, 1800},   // coffee  (calibrate: placeholders)
+                                  {0, 900, 1300, 1600, 1800},   // milk
+                                  {0, 900, 1300, 1600, 1800}};  // cream
+const int   LEVEL_SAMPLES     = 16;    // averaged per reading: one ADC sample jumps by ~100
 const int   LEVEL_LOCK_PCT    = 10;    // below: that pump is locked (dry-run protection)
 const int   LEVEL_UNLOCK_PCT  = 20;    // must refill above this to unlock (hysteresis, no relay chatter)
 const int   CUP_FULL_PCT      = 90;    // Node 3 cup reading that stops the pump
@@ -185,10 +193,21 @@ void checkPeers() {
   }
 }
 
+// Interpolate between calibration points: raw[] and pct[] are n matching, increasing values.
+int rawToPct(int raw, const int* rawPts, const int* pct, int n) {
+  if (raw <= rawPts[0])     return pct[0];
+  if (raw >= rawPts[n - 1]) return pct[n - 1];
+  for (int i = 1; i < n; i++)
+    if (raw < rawPts[i]) return map(raw, rawPts[i - 1], rawPts[i], pct[i - 1], pct[i]);
+  return pct[n - 1];
+}
+
 void readLevels() {
   for (int i = 0; i < 3; i++) {
-    levelRaw[i] = analogRead(LEVEL_PIN[i]);
-    levelPct[i] = constrain(map(levelRaw[i], LEVEL_RAW_DRY[i], LEVEL_RAW_FULL[i], 0, 100), 0, 100);
+    long sum = 0;
+    for (int k = 0; k < LEVEL_SAMPLES; k++) sum += analogRead(LEVEL_PIN[i]);
+    levelRaw[i] = sum / LEVEL_SAMPLES;
+    levelPct[i] = rawToPct(levelRaw[i], LEVEL_RAW[i], LEVEL_PCT, 5);
     if (!locked[i] && levelPct[i] < LEVEL_LOCK_PCT) {
       locked[i] = true;
       logEvent(String(ING[i]) + " reservoir low (" + levelPct[i] + "%) - pump locked");

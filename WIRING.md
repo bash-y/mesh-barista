@@ -112,8 +112,8 @@ Parts: ESP32, 1 water sensor, OLED (4-pin I2C), RGB LED (4-pin, marked V G B R).
 
 - The LED is common-anode: V is the shared positive. If yours is a bare LED with no small board,
   put a 220 Ω resistor in line with each of R, G and B.
-- Clip the water sensor inside the cup so the water reaches the strips as it fills. The top of the
-  strips is the "full" line.
+- Clip the water sensor inside the cup so the water reaches the strips as it fills, with the top of the
+  strips 3 cm below the lip. The top of the strips is the "full" line.
 
 ## Power-up checks
 
@@ -129,12 +129,13 @@ Do these in order. Each one uses the dashboard: join the Wi-Fi the nodes create 
    R, G, B wires are swapped.
 5. **Joystick.** The Inputs card shows Joystick X and Y near 1900 at rest, moving toward 0 and 4095
    when pushed. A value stuck near 0 or 4095 means that axis wire, 3V3 or GND is loose.
-6. **Water sensors.** The Inputs card shows each raw value. Note it dry and at the full mark, then put
-   the numbers in `LEVEL_RAW_DRY` / `LEVEL_RAW_FULL` (Node 1) and flash again. The cup sensor's strips
-   (2.0") are shorter than the cup (4.5"), so mount them with their top at the rim: they cover 2.5" to
-   4.5" of water (56 % to 100 %), and below that the cup reads 0 %. They are not linear, so note the
-   raw value dry and with water at 2.5", 3.0", 3.5", 4.0" and 4.5", put them in `CUP_RAW` (Node 3)
-   and flash again.
+6. **Water sensors.** The Inputs card shows each raw value. The strips are not linear, so each sensor is
+   calibrated at several heights, measured from the inside bottom:
+   - **Reservoirs:** the sensors stand on the bottom and watch the last 5 cm. Note the raw value dry and
+     at 1.3, 2.5, 3.8 and 5.1 cm, and put each reservoir's row in `LEVEL_RAW` (Node 1).
+   - **Cup:** the top of the strips sits 3 cm below the lip and is the "full" line; Node 1 stops at 90 %.
+     Note the raw value dry and at 3.4, 4.6, 5.9, 7.2 and 8.4 cm, and put them in `CUP_RAW` (Node 3).
+   Then flash both nodes again.
 7. **Pumps, with the pump supply on.** "Coffee pump, 10 mL", then milk, then cream. Each relay
    should click and its pump should run briefly.
 8. **Flow rate.** Pour 200 mL of one ingredient into a measuring cup and time it. Put mL divided by
