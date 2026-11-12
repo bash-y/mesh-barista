@@ -55,6 +55,8 @@ def rewrite_links(text, src):
         target = os.path.normpath(os.path.join(src.parent.relative_to(ROOT), path)).replace(os.sep, "/")
         if target in FILE_PAGE and not m.group(1).startswith("!"):
             return f"{m.group(1)}{FILE_PAGE[target]}{'#' + anchor if anchor else ''}{m.group(3)}"
+        if m.group(1).startswith("!"):  # images need the raw file, not GitHub's file page
+            return f"{m.group(1)}https://github.com/{REPO}/raw/{BRANCH}/{target}{m.group(3)}"
         return f"{m.group(1)}{BLOB}{target}{'#' + anchor if anchor else ''}{m.group(3)}"
     return LINK.sub(fix, text)
 

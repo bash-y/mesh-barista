@@ -39,14 +39,46 @@ These are the UIW-PMD conventions. The issue templates (**New issue** → pick a
 3. **Link it to its parent.** Add tasks as **sub-issues** of their story (issue sidebar → *Create
    sub-issue* or *Add existing issue*), and also write `Parent: #7` in the task's description. Parent and
    child must be in the same milestone. A task that is not linked shows under **Not linked to a story**.
-4. **Estimate it in story points.** Write `Story points: 3` under *Estimation of effort* in the
-   description, and set the same number in the board's **Story Points** field. Use 1, 2, 3, 5 or 8;
-   anything bigger is a story that needs splitting. Unestimated items show **–**.
-   - A story's estimate covers its tasks, so the dashboard does not add them again. Keep a story's points
-     equal to the sum of its tasks.
+4. **Estimate it in story points.** Pick the number with the [story points guide](#story-points-guide)
+   below, write `Story points: 3` under *Estimation of effort* in the description, and set the same
+   number in the board's **Story Points** field. Unestimated items show **–**.
+   - Estimate **tasks, issues, bugs and sub-tasks** with the guide. A **story's** points are the sum of
+     its tasks: the dashboard counts a story's estimate once, covering its tasks, so it does not add
+     them again. Keep the two equal when a task is added, removed or re-estimated.
+   - A task at **8** should be split and a task at **13** must be split. A story whose tasks add up to
+     8 or more is too big for one sprint: split it into two stories.
 5. **Mark blockers.** Write `Blocked by #12` (or `Depends on #12`) in the description.
 6. **Put it on the board.** In the issue sidebar, **Projects → Mesh Barista**, then set its **Status**,
    **Story Points** and **Sprint**.
+
+## Story points guide
+
+Pick the column that describes the item best on all three rows. **If it fits more than one column, pick
+the higher one.** The work effort row is for one person working on it.
+
+| Story points | 1 | 2 | 3 | 5 | 8 | 13 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **How much is known about the task** | Everything | Almost everything | Something | Almost nothing | Nothing | Nothing |
+| **Dependencies** | None | Almost none | Some | Few | More than few | Unknown |
+| **Work effort** | Less than 2 hours | Half a day | Up to two days | A few days | Around a week | More than a week |
+| **Action** | | | | | Should be split into smaller items | Must be split into smaller items |
+
+Examples from this project:
+
+| Item | Points | Why |
+| --- | --- | --- |
+| Task: Listen to every sound once | 1 | Everything known, no dependencies, under 2 hours |
+| Task: Measure each pump's flow rate | 2 | Method known, about half a day with three pumps |
+| Task: Power each water sensor from a GPIO, on only while reading | 3 | Wiring and firmware on two nodes, up to two days |
+| Task: Prototype a load cell reading under the cup | 3 | New part, but one board and one sensor |
+
+Only **1, 2, 3, 5, 8, 13** are valid for tasks, issues, bugs and sub-tasks. A story's total can be any
+number, because it is a sum.
+
+![Story Points Estimation Cheat Sheet](images/story-points-guide.png)
+
+<sub>Guide adapted from the *Story Points Estimation Cheat Sheet* by Teamhood. The table above is the text
+version that agents and tools should read; the image is the original.</sub>
 
 ## Board columns
 

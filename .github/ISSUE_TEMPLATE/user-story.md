@@ -19,6 +19,7 @@ As a <who>, I want <what> so that <why>.
 
 ## Estimation of effort
 
+<!-- The sum of this story's task points. Estimate the tasks with docs/AGILE.md#story-points-guide; if they add up to 8 or more, split the story. -->
 Story points: TBD
 
 <!-- Blocked by #N  (delete this line if nothing blocks it) -->

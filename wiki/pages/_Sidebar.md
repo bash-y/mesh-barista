@@ -16,6 +16,7 @@
 **Develop**
 - [[Working on the Hardware]]
 - [[Development Workflow]]
+  - [Story points guide](Development-Workflow#story-points-guide)
 - [[Sprint Status]]
 - [[Roadmap]]
 - [[Handoff]]

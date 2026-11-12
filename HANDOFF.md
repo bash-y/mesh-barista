@@ -4,6 +4,11 @@ Status as of 2026-11-12 (commit `3d98b44`), for whoever picks this up next, huma
 Read `README.md` first for what the system is. This file is what is **not done yet**, how to work on the
 hardware safely, and the traps we already hit.
 
+The work itself is tracked as GitHub issues on the project board. Before creating or estimating an issue,
+read `docs/AGILE.md`: it has the issue conventions the UIW-PMD dashboard reads (type, `Parent: #N`,
+`Story points: N`, `Blocked by #N`) and the **story points guide** (1, 2, 3, 5, 8, 13 by how much is known,
+dependencies and effort; 8 should be split, 13 must be).
+
 ## Current state in one paragraph
 
 All three nodes run the latest firmware: ESP-NOW mesh, a web dashboard on every node, an order queue
