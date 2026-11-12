@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Builds docs/wiring-guide.html and ../Mesh-Barista-Wiring-Guide.pdf.
-Needs Playwright and Chrome:  python3 docs/build_wiring_pdf.py"""
-import html, sys
+Needs Python 3.12+, Playwright and Chrome:  python3 docs/build_wiring_pdf.py
+Chrome elsewhere (macOS): CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" python3 docs/build_wiring_pdf.py"""
+import html, os, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -87,8 +88,8 @@ N1 = diagram(["GPIO 25", "GPIO 26", "GPIO 27", "VIN (5V)", "GPIO 32", "GPIO 33",
     ("Water sensor · milk", [("S", "GPIO 33"), ("+", "3V3"), ("−", "GND")]),
     ("Water sensor · cream", [("S", "GPIO 34"), ("+", "3V3"), ("−", "GND")]),
     ("Buzzer", [("I/O", "GPIO 13"), ("VCC", "3V3"), ("GND", "GND")])], row=18)
-N2 = diagram(["GPIO 34", "GPIO 35", "GPIO 27", "3V3", "GPIO 21", "GPIO 22", "GPIO 25", "GND"], [
-    ("Joystick", [("VRx", "GPIO 34"), ("VRy", "GPIO 35"), ("SW", "GPIO 27"), ("+5V", "3V3"), ("GND", "GND")]),
+N2 = diagram(["GPIO 32", "GPIO 35", "GPIO 27", "3V3", "GPIO 21", "GPIO 22", "GPIO 25", "GND"], [
+    ("Joystick", [("VRx", "GPIO 32"), ("VRy", "GPIO 35"), ("SW", "GPIO 27"), ("+5V", "3V3"), ("GND", "GND")]),
     ("OLED display", [("SDA", "GPIO 21"), ("SCL", "GPIO 22"), ("VCC", "3V3"), ("GND", "GND")]),
     ("Buzzer", [("I/O", "GPIO 25"), ("VCC", "3V3"), ("GND", "GND")])])
 N3 = diagram(["GPIO 32", "3V3", "GPIO 21", "GPIO 22", "GPIO 25", "GPIO 26", "GPIO 27", "GND"], [
@@ -195,7 +196,7 @@ code {{ font-family: monospace; background: {CREAM}; padding: 0 3pt; border-radi
 ("Buzzer sounds all the time", "Active-HIGH buzzer module. Set <code>BUZZER_ON</code> to <code>HIGH</code> in that node's sketch."),
 ("Level stays at 0 % or 100 %", "Sensor on the wrong pin, or the raw dry and full values are not calibrated yet."),
 ("OLED is blank", "SDA and SCL swapped, or a display that is not at address 0x3C."),
-("Menu will not move", "The joystick was held during power-up, or VRx is not reaching GPIO 34. Check Joystick X on the Test tab."),
+("Menu will not move", "The joystick was held during power-up, or VRx is not reaching GPIO 32. Check Joystick X on the Test tab."),
 ("LED colors are wrong", "Two of the R, G, B wires are swapped. Run Cycle Node 3 LED to see which."),
 ("A node shows LOST", "That board is unpowered, or was flashed with a different <code>MESH_SSID</code> or <code>MESH_CHANNEL</code>."),
 ("barista.io will not load", "Not joined to the nodes' Wi-Fi, mobile data is on, or <code>http://</code> was left off. Use http://192.168.4.1 instead."),
@@ -209,7 +210,7 @@ DOC = pages[0] + "".join(f'<section class="page"><div class="foot"><span>MESH BA
 
 from playwright.sync_api import sync_playwright
 with sync_playwright() as p:
-    b = p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
+    b = p.chromium.launch(executable_path=os.environ.get("CHROME", "/usr/bin/google-chrome"), args=["--no-sandbox"])
     pg = b.new_page()
     pg.goto("file://" + str(HERE / "wiring-guide.html"))
     pg.pdf(path=str(HERE.parent / "Mesh-Barista-Wiring-Guide.pdf"), format="Letter", print_background=True,
