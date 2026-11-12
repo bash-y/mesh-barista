@@ -1,0 +1,614 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Mesh Barista Console</title>
+<!-- Mesh Barista dashboard. This is the readable source: after editing it, run
+     dashboard_src/build_assets.py to rebuild dashboard_html.h in all three sketch folders. -->
+</head><body>
+<style>
+:root{
+  --bg:#ECEFF2; --surface:#FFFFFF; --surface2:#F4F7F9; --line:#D2DADF; --line-soft:#E3E9ED;
+  --text:#0F1A21; --muted:#586875; --accent:#9A6B16; --accent-ink:#FFFFFF;
+  --ok:#14795A; --warn:#A96F12; --crit:#BB3A2D; --cool:#1E6EA6; --band:rgba(30,110,166,.10);
+  --shadow:0 1px 2px rgba(16,30,40,.08),0 8px 20px rgba(16,30,40,.05);
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+/* Dark is black: pure black page, neutral grey surfaces, no blue tint. */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#000000; --surface:#0E0E0E; --surface2:#171717; --line:#2B2B2B; --line-soft:#1E1E1E;
+  --text:#EDEDED; --muted:#9E9E9E; --accent:#D9A441; --accent-ink:#141006;
+  --ok:#3FB68B; --warn:#E3A63A; --crit:#E8645A; --cool:#62AEE0; --band:rgba(98,174,224,.13);
+  --shadow:none;
+}}
+:root[data-theme="dark"]{
+  --bg:#000000; --surface:#0E0E0E; --surface2:#171717; --line:#2B2B2B; --line-soft:#1E1E1E;
+  --text:#EDEDED; --muted:#9E9E9E; --accent:#D9A441; --accent-ink:#141006;
+  --ok:#3FB68B; --warn:#E3A63A; --crit:#E8645A; --cool:#62AEE0; --band:rgba(98,174,224,.13);
+  --shadow:none;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.45;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 40px}
+h1,h2,h3{margin:0;font-weight:650;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--accent)}
+.lbl{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+
+/* ---------- top bar ---------- */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--surface);
+  border-bottom:1px solid var(--line)}
+.bar-in{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.mark{display:flex;align-items:baseline;gap:9px;margin-right:auto}
+.mark b{font-size:17px;letter-spacing:.10em;font-weight:700}
+.mark span{font-size:11px;letter-spacing:.09em;color:var(--muted);text-transform:uppercase}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;
+  padding:4px 11px;font-size:12px;background:var(--surface2);white-space:nowrap}
+.chip .num{font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:0 0 8px}
+.dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.dot.down{background:var(--crit);box-shadow:0 0 0 3px color-mix(in srgb,var(--crit) 22%,transparent)}
+.iconbtn{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:5px 10px;
+  cursor:pointer;font-size:12px;font-weight:600;min-height:30px}
+.iconbtn:hover{border-color:var(--accent)}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:2px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:3px;
+  margin:16px 0 18px;overflow-x:auto;scrollbar-width:none}
+.tab{flex:1 1 auto;border:0;background:transparent;border-radius:8px;padding:9px 14px;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow);
+  outline:1px solid var(--line)}
+.page[hidden]{display:none}
+
+/* ---------- banners ---------- */
+.banner{display:flex;gap:12px;align-items:center;border-radius:10px;padding:11px 14px;margin-bottom:14px;
+  border:1px solid var(--line);background:var(--surface2);font-size:13px;flex-wrap:wrap}
+.banner.demo{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--surface))}
+.banner.err{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 12%,var(--surface))}
+.banner b{font-weight:700}
+.banner .iconbtn,.banner .btn{margin-left:auto}
+
+/* ---------- session strip ---------- */
+.session{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:12px;background:var(--surface);
+  box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+.session.active{border-left-color:var(--ok)}
+.session.warn{border-left-color:var(--warn)}
+.session.crit{border-left-color:var(--crit)}
+.session-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.state{font-size:17px;font-weight:700;letter-spacing:.04em}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px 18px}
+.fact{min-width:0}
+.fact .lbl{display:block;margin-bottom:2px}
+.fact .v{font-family:var(--mono);font-size:15px;overflow-wrap:anywhere}
+.fact .v.text{font-family:var(--sans);font-size:14px}
+.assign{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+.assign input{flex:1 1 220px;min-width:0;padding:9px 11px;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface2);font-family:var(--mono)}
+.btn{border:1px solid transparent;background:var(--accent);color:var(--accent-ink);font-weight:650;font-size:13px;
+  border-radius:8px;padding:9px 14px;cursor:pointer;min-height:38px}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:var(--surface2);color:var(--text);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--accent);filter:none}
+.btn.danger{background:var(--crit);color:#fff}
+.btn.quiet-danger{background:var(--surface2);color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,var(--line))}
+.btn.quiet-danger:hover{border-color:var(--crit)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.small{padding:4px 10px;font-size:12px;min-height:30px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- readout tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:var(--shadow)}
+.tile .big{font-family:var(--mono);font-size:30px;font-weight:600;line-height:1.1;margin:6px 0 2px;
+  font-variant-numeric:tabular-nums}
+.tile .sub{font-size:12px;color:var(--muted)}
+.tile.bad .big{color:var(--crit)}
+.tile .big.small{font-size:19px}
+
+/* ---------- cards ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+  padding:16px;margin-bottom:14px}
+.card-head{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin-bottom:12px}
+.card-head h2{font-size:15px;letter-spacing:.02em}
+.card-head .lbl{margin-left:auto}
+.card-head .push{margin-left:auto}
+
+/* ---------- feed / tables ---------- */
+.feed{list-style:none;margin:0;padding:0;max-height:264px;overflow-y:auto}
+.feed li{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13px;align-items:center}
+.feed li:last-child{border-bottom:0}
+.feed time{font-family:var(--mono);font-size:12px;color:var(--muted);flex:0 0 auto}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  font-weight:600;padding:0 10px 8px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px 10px 10px 0;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.mono,.mono{font-family:var(--mono);overflow-wrap:anywhere}
+td.nowrap{white-space:nowrap}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:650;letter-spacing:.04em;
+  border:1px solid var(--line);background:var(--surface2);white-space:nowrap}
+.pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.pill.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.pill.crit{color:var(--crit);border-color:color-mix(in srgb,var(--crit) 45%,var(--line))}
+.pill.cool{color:var(--cool);border-color:color-mix(in srgb,var(--cool) 45%,var(--line))}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}
+.rowbtns{display:flex;gap:8px;flex-wrap:wrap}
+.rowbtns.end{justify-content:flex-end}
+.hint{font-size:12px;color:var(--muted);margin:10px 0 0}
+.steps{margin:0;padding-left:18px;font-size:13px;color:var(--muted)}
+.steps li{margin:3px 0}
+pre.log{margin:0;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:12px;
+  font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto}
+
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  z-index:60;display:flex;flex-direction:column;gap:8px;width:min(440px,calc(100% - 32px))}
+.toast{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;
+  padding:10px 13px;box-shadow:var(--shadow);font-size:13px}
+.toast.ok{border-left-color:var(--ok)}
+.toast.err{border-left-color:var(--crit)}
+
+/* ---------- gauges ---------- */
+.gauge{height:12px;border:1px solid var(--line);border-radius:6px;background:var(--surface2);overflow:hidden;margin:8px 0 6px}
+.gauge > i{display:block;height:100%;background:var(--ok);width:0}
+.gauge.warn > i{background:var(--warn)}
+.gauge.crit > i{background:var(--crit)}
+
+.assign label{display:flex;flex-direction:column;gap:4px;flex:1 1 130px;min-width:0}
+.assign label input,.assign label select{flex:0 0 auto;width:100%;padding:9px 11px;border:1px solid var(--line);
+  border-radius:8px;background:var(--surface2)}
+
+@media print{
+  .bar,.tabs,#toasts,.no-print{display:none!important}
+  html,body{background:#fff;color:#000}
+  .card,.session{box-shadow:none;border-color:#bbb;break-inside:avoid}
+  .wrap{max-width:none;padding:0}
+}
+/* ---------- barista additions ---------- */
+.split{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:14px}
+@media(max-width:820px){.split{grid-template-columns:minmax(0,1fr)}}
+.tile .gauge{margin:8px 0 6px}
+.paths{list-style:none;margin:0;padding:0;font-size:13px}
+.paths li{display:flex;gap:8px 10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+.paths li:last-child{border-bottom:0}
+.assign.first{border-top:0;margin-top:0;padding-top:0}
+.session-top .push{margin-left:auto}
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="mark"><b>MESH BARISTA</b><span>PR2</span></div>
+    <span class="chip"><span class="dot" id="linkdot"></span><span id="served">Connecting</span>
+      <span class="num" id="ip"></span></span>
+    <button class="iconbtn" id="theme" type="button" title="Switch light / black">◐</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-page="live">Live</button>
+    <button class="tab" role="tab" aria-selected="false" data-page="test">Test</button>
+    <button class="tab" role="tab" aria-selected="false" data-page="system">System</button>
+  </div>
+
+  <div class="banner demo" id="demobar" hidden>
+    <b>Demo data.</b><span>No node is answering at this address, so every number below is made up.</span>
+    <button class="iconbtn" type="button" id="retry">Retry</button>
+  </div>
+  <div class="banner err" id="lostbar" hidden>
+    <b id="losthead">No answer from the node.</b><span id="lostmsg">Showing the last values it sent.</span>
+  </div>
+  <div class="banner demo" id="failbar" hidden>
+    <b id="failhead">Reading from another node.</b><span>Your device hopped to a different node's Wi-Fi.</span>
+  </div>
+
+  <!-- ============================ LIVE ============================ -->
+  <section class="page" id="page-live">
+    <div class="session" id="session">
+      <div class="session-top">
+        <span class="state" id="state">—</span>
+        <span class="pill" id="statepill">Waiting for the first reading</span>
+        <span class="lbl push" id="polled">—</span>
+      </div>
+      <div class="facts">
+        <div class="fact"><span class="lbl">Pump</span><span class="v text" id="pumpnow">—</span></div>
+        <div class="fact"><span class="lbl">Cup</span><span class="v num" id="cupnow">—</span></div>
+        <div class="fact"><span class="lbl">Joystick menu</span><span class="v text" id="menunow">—</span></div>
+        <div class="fact"><span class="lbl">Leaves SAFE by</span><span class="v text">Operator acknowledge</span></div>
+      </div>
+      <div class="rowbtns" id="livebtns" style="margin-top:14px" hidden>
+        <button class="btn" type="button" id="ackbtn" data-cmd="ack" data-need="1" data-label="Acknowledge">Acknowledge and leave SAFE</button>
+        <button class="btn quiet-danger" type="button" id="stopbtn" data-cmd="stop" data-need="1" data-label="Stop">Stop pump</button>
+      </div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile" id="tile0"><span class="lbl">Coffee reservoir</span><div class="big" id="lv0">—</div>
+        <div class="gauge" id="g0"><i></i></div><div class="sub" id="sub0">—</div></div>
+      <div class="tile" id="tile1"><span class="lbl">Milk reservoir</span><div class="big" id="lv1">—</div>
+        <div class="gauge" id="g1"><i></i></div><div class="sub" id="sub1">—</div></div>
+      <div class="tile" id="tile2"><span class="lbl">Cream reservoir</span><div class="big" id="lv2">—</div>
+        <div class="gauge" id="g2"><i></i></div><div class="sub" id="sub2">—</div></div>
+      <div class="tile" id="tile3"><span class="lbl">Cup</span><div class="big" id="lv3">—</div>
+        <div class="gauge" id="g3"><i></i></div><div class="sub" id="sub3">—</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Nodes</h2><span class="lbl">lost after 3 s without a heartbeat</span></div>
+      <div class="tablewrap" id="nodewrap"><p class="empty">Loading…</p></div>
+      <p class="hint">Every node is a Wi-Fi access point with the same name and hosts this page at the same
+        address. When the node your device is joined to goes off, it hops to another one and the page carries on.</p>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <div class="card-head"><h2>Event log</h2><span class="lbl" id="loglbl">newest first</span></div>
+        <ul class="feed" id="feed"><li><time>—</time><span>Waiting for the first reading…</span></li></ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Mesh links</h2><span class="lbl" id="topolbl">—</span></div>
+        <ul class="paths" id="paths"><li class="muted">Waiting for the first reading…</li></ul>
+        <p class="hint">Each line is the path a message takes from the node serving this page. Direct means
+          ESP-NOW heard it first-hand; multi-hop means the third node relayed it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ TEST ============================ -->
+  <section class="page" id="page-test" hidden>
+    <div class="card">
+      <div class="card-head"><h2>Pour</h2><span class="lbl">pumps and relays</span></div>
+      <div class="assign first">
+        <label><span class="lbl">Ingredient</span>
+          <select id="pouring" aria-label="Ingredient">
+            <option value="0">Coffee</option><option value="1">Milk</option><option value="2">Cream</option>
+          </select></label>
+        <label><span class="lbl">Amount (mL)</span>
+          <input id="pourml" type="number" min="10" max="300" step="10" value="30" inputmode="numeric"></label>
+        <button class="btn" type="button" id="pourbtn" data-need="1" style="align-self:flex-end">Pour</button>
+        <button class="btn quiet-danger" type="button" data-cmd="stop" data-need="1" data-label="Stop"
+          style="align-self:flex-end">Stop pump</button>
+      </div>
+      <div class="rowbtns" style="margin-top:12px">
+        <button class="btn ghost" type="button" data-cmd="pour" data-args='{"ing":0,"ml":10}' data-need="1"
+          data-label="Coffee pump check">Coffee pump, 10 mL</button>
+        <button class="btn ghost" type="button" data-cmd="pour" data-args='{"ing":1,"ml":10}' data-need="1"
+          data-label="Milk pump check">Milk pump, 10 mL</button>
+        <button class="btn ghost" type="button" data-cmd="pour" data-args='{"ing":2,"ml":10}' data-need="1"
+          data-label="Cream pump check">Cream pump, 10 mL</button>
+      </div>
+      <p class="hint">A pour from here follows the same rules as the joystick: one pump at a time, none in SAFE,
+        none from a low reservoir, none into a full cup. A refused pour shows up in red and in the event log.</p>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <div class="card-head"><h2>Safe state</h2><span class="pill push" id="teststate">—</span></div>
+        <div class="rowbtns">
+          <button class="btn quiet-danger" type="button" data-cmd="trip" data-need="1" data-label="Trip SAFE">Trip SAFE</button>
+          <button class="btn" type="button" data-cmd="ack" data-need="1" data-label="Acknowledge">Acknowledge</button>
+        </div>
+        <p class="hint">Trip SAFE makes the pump station enter its safe state as if a fault had happened: pumps off,
+          both buzzers on, LED flashing red. Acknowledge clears it once Node 3 (the cup sensor) is reachable.
+          With Node 2 off, the system then runs DEGRADED from this page.</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Outputs</h2><span class="lbl">buzzers and LED</span></div>
+        <div class="rowbtns">
+          <button class="btn ghost" type="button" data-cmd="buzz" data-args='{"to":1}' data-need="1"
+            data-label="Node 1 buzzer">Beep Node 1 buzzer</button>
+          <button class="btn ghost" type="button" data-cmd="buzz" data-args='{"to":2}' data-need="2"
+            data-label="Node 2 buzzer">Beep Node 2 buzzer</button>
+          <button class="btn ghost" type="button" data-cmd="led" data-args='{"to":3}' data-need="3"
+            data-label="Node 3 LED">Cycle Node 3 LED</button>
+        </div>
+        <p class="hint">A buzzer beeps for 1 second. The LED shows red, green, then blue, so a swapped wire is
+          easy to spot. A button is greyed out while its node is LOST.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Range</h2><span class="lbl" id="rangelbl">—</span></div>
+      <div class="rowbtns">
+        <button class="btn ghost" type="button" id="splitbtn">Put Node 1 and Node 3 out of range of each other</button>
+      </div>
+      <p class="hint">ESP-NOW reaches every node directly on a bench, so this makes Nodes 1 and 3 ignore what
+        they hear first-hand from each other. Their messages then only arrive relayed by Node 2, and the mesh
+        links card on the Live tab shows the multi-hop path. Press it again to put them back in range.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Inputs</h2><span class="lbl">live readings</span></div>
+      <div class="facts" id="inputs"></div>
+      <p class="hint">Raw is the sensor's analogRead value. To calibrate, note it dry and at the full mark, then put
+        the two numbers in <span class="mono">LEVEL_RAW_DRY</span> / <span class="mono">LEVEL_RAW_FULL</span> on Node 1
+        and <span class="mono">CUP_RAW_DRY</span> / <span class="mono">CUP_RAW_FULL</span> on Node 3.</p>
+    </div>
+  </section>
+
+  <!-- =========================== SYSTEM =========================== -->
+  <section class="page" id="page-system" hidden>
+    <div class="card">
+      <div class="card-head"><h2>This page</h2><span class="lbl">polls once a second</span></div>
+      <div class="facts" id="sysgrid"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Raw status</h2><span class="lbl">/data</span></div>
+      <pre class="log" id="raw">—</pre>
+    </div>
+  </section>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s), el=(t,c,x)=>{const n=document.createElement(t);if(c)n.className=c;
+  if(x!==undefined)n.textContent=x;return n;};
+const POLL=1000, LOST_MS=5000, TIMEOUT=1500;
+const ZONES={1:"pump station",2:"control",3:"output"}, ING=["coffee","milk","cream"];
+let data=null, demo=false, firstTry=true, misses=0, busy=false;
+let epoch=0, epochNode=0, lastT=-1, firstMe=0;   // epoch: this browser's clock time at the serving node's boot
+// Addresses to read from. "" is the node that served this page; the others are learned from the
+// status messages and tried when it stops answering (your device hops to another node's Wi-Fi).
+let bases=[""], bi=0;
+const demoStart=Date.now();
+
+/* ---------- preferences (best effort, this browser only) ---------- */
+const store={get(k,d){try{return localStorage.getItem(k)??d}catch(e){return d}},
+             set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let theme=store.get("meshbarista.theme","");
+if(theme) document.documentElement.setAttribute("data-theme",theme);
+$("#theme").onclick=()=>{const dark=document.documentElement.getAttribute("data-theme")==="dark"
+  || (!document.documentElement.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme:dark)").matches);
+  theme=dark?"light":"dark";document.documentElement.setAttribute("data-theme",theme);store.set("meshbarista.theme",theme);};
+
+/* ---------- helpers ---------- */
+const clock=d=>d.toTimeString().slice(0,8);
+const secs=ms=>(ms/1000).toFixed(1)+" s";
+function span(s){s=Math.max(0,Math.round(s));
+  if(s<60)return s+" s";
+  if(s<3600)return Math.floor(s/60)+" min "+String(s%60).padStart(2,"0")+" s";
+  return Math.floor(s/3600)+" h "+String(Math.floor(s/60)%60).padStart(2,"0")+" min";}
+function toast(msg,kind){const t=el("div","toast"+(kind?" "+kind:""),msg);$("#toasts").append(t);
+  setTimeout(()=>t.remove(),kind==="err"?6500:3000);}
+function fact(label,value,cls){const d=el("div","fact");d.append(el("span","lbl",label));
+  d.append(el("span","v"+(cls?" "+cls:""),value));return d;}
+function pill(text,kind){return el("span","pill"+(kind?" "+kind:""),text);}
+async function request(url,opt){
+  const c=new AbortController(), t=setTimeout(()=>c.abort(),TIMEOUT);
+  try{const r=await fetch(url,Object.assign({cache:"no-store",signal:c.signal},opt));
+    if(!r.ok)throw new Error("HTTP "+r.status);return r;}
+  finally{clearTimeout(t);}
+}
+
+/* ---------- tabs ---------- */
+function showTab(name){
+  if(!$("#page-"+name))name="live";
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.page===name)));
+  document.querySelectorAll(".page").forEach(p=>{p.hidden=p.id!=="page-"+name;});
+  store.set("meshbarista.tab",name);
+}
+document.querySelectorAll(".tab").forEach(t=>{t.onclick=()=>showTab(t.dataset.page);});
+
+/* ---------- polling, with fail-over to the other nodes ---------- */
+async function poll(){
+  if(busy)return;
+  busy=true;
+  try{
+    const d=await(await request(bases[bi]+"/data")).json();
+    if(demo){demo=false;$("#demobar").hidden=true;epochNode=0;}
+    firstTry=false;misses=0;use(d);
+  }catch(e){
+    if(firstTry){firstTry=false;demo=true;$("#demobar").hidden=false;}
+    if(demo)use(demoData());
+    else{misses++;if(misses>=2&&bases.length>1)bi=(bi+1)%bases.length;mark();}
+  }finally{busy=false;}
+}
+function use(d){
+  data=d;
+  const e=Date.now()-d.now;
+  if(epochNode!==d.me||Math.abs(e-epoch)>3000){epoch=e;epochNode=d.me;lastT=-1;}  // new node, or it rebooted
+  let newest=lastT;
+  for(const ev of d.log||[]){
+    if(ev.t>lastT&&lastT>=0&&/refused|rejected|ignored/.test(ev.m))toast(ev.m,"err");
+    if(ev.t>newest)newest=ev.t;
+  }
+  lastT=Math.max(newest,0);
+  if(!demo)for(const n of [1,2,3]){
+    const ip=d.nodes[n]&&d.nodes[n].s&&d.nodes[n].s.ip;
+    if(ip&&ip!=="0.0.0.0"&&ip!==location.hostname&&!bases.includes("http://"+ip))bases.push("http://"+ip);
+  }
+  mark();render();
+}
+function mark(){
+  const up=demo||misses===0;
+  $("#linkdot").className="dot "+(demo?"down":(up?"live":"down"));
+  $("#lostbar").hidden=demo||misses<2;
+  if(data&&!demo&&!firstMe)firstMe=data.me;
+  $("#failbar").hidden=demo||misses>0||!data||data.me===firstMe;
+  if(!data)return;
+  const ip=(data.nodes[data.me].s||{}).ip||"";
+  $("#served").textContent=demo?"Demo":(up?"Node "+data.me+", "+ZONES[data.me]:"No answer");
+  $("#ip").textContent=demo?"":ip;
+  $("#losthead").textContent="No answer from Node "+data.me+".";
+  $("#lostmsg").textContent="Showing the last values it sent, from "+($("#polled").dataset.t||"—")+
+    (bases.length>1?". Trying the other nodes.":". It may be off or out of range.");
+  $("#failhead").textContent="Now reading from Node "+data.me+".";
+  if(up){const t=clock(new Date());$("#polled").textContent="updated "+t;$("#polled").dataset.t=t;}
+}
+
+/* ---------- render ---------- */
+function nodes(d){
+  const N={};
+  for(const n of [1,2,3]){const x=d.nodes[n]||{age:-1};
+    N[n]={age:x.age,seen:x.age>=0,alive:x.age>=0&&x.age<LOST_MS,s:x.s||{},id:x.id};}
+  return N;
+}
+// The same rule the gateway uses: a lost node wins, then the pump station's own state.
+function systemState(N){
+  const s=N[1].s, gone=n=>ZONES[n]+" (Node "+n+") "+(N[n].seen?"LOST":"not seen yet");
+  for(const n of [1,3])if(!N[n].alive)return {state:"SAFE",zone:gone(n)};
+  // Without Node 2 the pump station goes SAFE; after an acknowledge it carries on DEGRADED.
+  if(!N[2].alive)return s.state==="SAFE"?{state:"SAFE",zone:gone(2)}:{state:"DEGRADED",zone:gone(2)+", running without it"};
+  if(s.state==="SAFE")return {state:"SAFE",zone:"pump station: "+(s.why||"safe state")};
+  if(s.state==="DEGRADED")return {state:"DEGRADED",
+    zone:"pump station: "+(ING.filter((_,i)=>s.lock&&s.lock[i]).join(", ")||"a")+" reservoir low"};
+  return {state:"NORMAL",zone:""};
+}
+function gauge(i,pct,kind,sub,bad){
+  $("#lv"+i).textContent=pct==null?"—":pct+"%";
+  const g=$("#g"+i);g.className="gauge"+(kind?" "+kind:"");
+  g.firstElementChild.style.width=(pct==null?0:Math.max(0,Math.min(100,pct)))+"%";
+  $("#sub"+i).textContent=sub;$("#tile"+i).classList.toggle("bad",!!bad);
+}
+function render(){
+  const d=data;if(!d)return;
+  const N=nodes(d), s1=N[1].s, s2=N[2].s, s3=N[3].s, sys=systemState(N);
+  const kind=sys.state==="NORMAL"?"ok":sys.state==="DEGRADED"?"warn":"crit";
+
+  /* session strip */
+  $("#state").textContent=sys.state;
+  $("#session").className="session "+(kind==="ok"?"active":kind);
+  const sp=$("#statepill");sp.className="pill "+kind;
+  sp.textContent=sys.zone?"Affected zone: "+sys.zone:"All zones OK";
+  const pump=N[1].alive?(s1.pump||0):0;
+  $("#pumpnow").textContent=!N[1].alive?"Unknown, Node 1 "+(N[1].seen?"LOST":"not seen yet")
+    :pump?ING[pump-1]+" pump running":"All pumps OFF";
+  $("#cupnow").textContent=s3.cup==null?"—":s3.cup+"%";
+  $("#menunow").textContent=s2.sel==null?"—":ING[s2.sel]+", "+s2.ml+" mL";
+  const safe=N[1].alive&&s1.state==="SAFE";
+  $("#ackbtn").hidden=!safe;$("#stopbtn").hidden=!pump;$("#livebtns").hidden=!safe&&!pump;
+
+  /* reservoirs and cup */
+  for(let i=0;i<3;i++){
+    const v=s1.lvl?s1.lvl[i]:null, lock=!!(s1.lock&&s1.lock[i]);
+    gauge(i,v,lock?"crit":v!=null&&v<=20?"warn":"",
+      !N[1].seen||v==null?"No reading yet":!N[1].alive?"Last value. Node 1 is LOST."
+      :lock?"Pump locked. Refill above 20%.":pump===i+1?"Pouring now":v<=20?"Getting low":"Pump ready",lock);
+  }
+  const cup=s3.cup==null?null:s3.cup, full=cup!=null&&cup>=90;
+  gauge(3,cup,full?"crit":"",!N[3].seen||cup==null?"No reading yet":!N[3].alive?"Last value. Node 3 is LOST."
+    :full?"Full. Pours are blocked.":"The pump stops at 90%",full);
+
+  /* nodes table */
+  const tb=el("table"), hr=el("tr");
+  for(const h of ["Node","Zone","Link","Last heartbeat","State","Sees","Dashboard address"])hr.append(el("th",null,h));
+  tb.append(hr);
+  for(const n of [1,2,3]){
+    const x=N[n], tr=el("tr"), link=el("td"), addr=el("td","mono nowrap");
+    link.append(pill(x.alive?"ALIVE":x.seen?"LOST":"WAITING",x.alive?"ok":x.seen?"crit":"warn"));
+    if(x.s.ip&&!demo){const a=el("a",null,"http://"+x.s.ip);a.href="http://"+x.s.ip+"/";addr.append(a);}
+    else addr.append(x.s.ip?"http://"+x.s.ip:"—");
+    if(n===d.me)addr.append(" ",pill("this page","cool"));
+    tr.append(el("td","nowrap","Node "+n),el("td",null,ZONES[n]),link,
+      el("td","mono nowrap",x.seen?secs(x.age)+" ago":"never"),
+      el("td",null,x.s.state?x.s.state+(x.alive?"":" (last)"):"—"),
+      el("td","nowrap",x.s.alive&&x.s.alive.length?"Node "+x.s.alive.join(", "):x.seen?"no one":"—"),addr);
+    tb.append(tr);
+  }
+  $("#nodewrap").replaceChildren(tb);
+
+  /* event log, newest first */
+  const ul=$("#feed");ul.textContent="";
+  const log=(d.log||[]).slice().reverse();
+  for(const ev of log){const li=el("li");li.append(el("time",null,clock(new Date(epoch+ev.t))),el("span",null,ev.m));ul.append(li);}
+  if(!log.length){const li=el("li");li.append(el("time",null,"—"),el("span",null,"Nothing logged yet."));ul.append(li);}
+  $("#loglbl").textContent="as seen by Node "+d.me+", newest first";
+
+  /* mesh links, as the serving node hears them */
+  const pl=$("#paths");pl.textContent="";
+  for(const n of [1,2,3]){
+    if(n===d.me)continue;
+    const L=(d.links||{})[n]||{}, li=el("li");
+    li.append(el("b",null,"Node "+n));
+    if(L.d)li.append(el("span","mono","Node "+d.me+" › Node "+n),pill("direct","ok"));
+    else if(L.v)li.append(el("span","mono","Node "+d.me+" › Node "+L.v+" › Node "+n),pill("multi-hop via Node "+L.v,"cool"));
+    else li.append(el("span","muted","nothing heard"),pill("no path","crit"));
+    pl.append(li);
+  }
+  $("#topolbl").textContent="as Node "+d.me+" hears them";
+
+  /* test page */
+  const ts=$("#teststate");ts.className="pill push "+kind;ts.textContent=sys.state;
+  const hops=[1,2,3].filter(n=>n!==d.me&&((d.links||{})[n]||{}).v);
+  $("#rangelbl").textContent=hops.length?"multi-hop to Node "+hops.join(", Node "):"every node is heard directly";
+  document.querySelectorAll("[data-need]").forEach(b=>{const off=!demo&&!N[b.dataset.need].alive;
+    b.disabled=off;b.title=off?"Node "+b.dataset.need+" is not connected":"";});
+  const raw=s1.raw||[], ig=$("#inputs");ig.textContent="";
+  ig.append(fact("Joystick X",s2.joy?String(s2.joy[0]):"—","num"),fact("Joystick Y",s2.joy?String(s2.joy[1]):"—","num"),
+    fact("Menu selection",s2.sel==null?"—":ING[s2.sel]+", "+s2.ml+" mL","text"));
+  ING.forEach((g,i)=>ig.append(fact(g+" sensor raw",raw[i]==null?"—":raw[i]+" ("+s1.lvl[i]+"%)","num")));
+  ig.append(fact("cup sensor raw",s3.raw==null?"—":s3.raw+" ("+s3.cup+"%)","num"));
+
+  /* system page */
+  const sg=$("#sysgrid");sg.textContent="";
+  const r=d.radio||{};
+  sg.append(fact("Reading from",demo?"Demo data":"Node "+d.me+", "+ZONES[d.me],"text"),
+    fact("Page loaded from",location.host||"a file","text"),
+    fact("Addresses known",String(bases.length)),
+    fact("Messages sent by Node "+d.me,r.sent==null?"—":String(r.sent)),
+    fact("Relayed by Node "+d.me,r.relayed==null?"—":String(r.relayed)),
+    fact("Dropped by Node "+d.me,r.dropped==null?"—":String(r.dropped)+(r.toobig?" ("+r.toobig+" too big)":"")),
+    fact("Node "+d.me+" ignores",(d.deaf||[]).map((x,i)=>x?"Node "+(i+1):"").filter(Boolean).join(", ")||"nobody","text"));
+  for(const n of [1,2,3])sg.append(fact("Node "+n+" uptime",N[n].s.up==null?"—":span(N[n].s.up/1000)+(N[n].alive?"":" (last)")),
+    fact("Node "+n+" messages sent",N[n].s.seq==null?"—":String(N[n].s.seq)));
+  $("#raw").textContent=JSON.stringify(d,null,1);
+}
+
+/* ---------- commands ---------- */
+async function send(c,args,label){
+  if(demo){toast("Not connected: this is demo data.","err");return;}
+  try{
+    await request(bases[bi]+"/cmd",{method:"POST",body:new URLSearchParams(Object.assign({c},args))});
+    toast(label+": sent","ok");setTimeout(poll,200);
+  }catch(e){toast("No answer from the node, so the command was not sent.","err");}
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-cmd]");
+  if(b&&!b.disabled)send(b.dataset.cmd,JSON.parse(b.dataset.args||"{}"),b.dataset.label||b.textContent);
+});
+$("#splitbtn").onclick=async()=>{
+  await send("deaf",{to:1,ing:3},"Node 1 range");
+  await send("deaf",{to:3,ing:1},"Node 3 range");
+};
+$("#pourbtn").onclick=()=>{
+  const ing=Number($("#pouring").value), ml=Math.round(Number($("#pourml").value));
+  if(!(ml>=10&&ml<=300)){toast("Enter an amount from 10 to 300 mL.","err");return;}
+  send("pour",{ing,ml},"Pour "+ml+" mL of "+ING[ing]);
+};
+$("#retry").onclick=poll;
+
+/* ---------- demo fallback (only when no node ever answered) ---------- */
+function demoData(){
+  const t=Date.now()-demoStart, step=Math.floor(t/3000)%8, pump=step===1?1:step===3?2:step===5?3:0;
+  const cup=Math.min(88,Math.round((t%24000)/24000*96));
+  return {me:2,now:t,nodes:{
+    1:{age:320,id:11,s:{node:1,zone:"pump station",seq:Math.floor(t/1000)+40,up:t+52000,lvl:[78,64,17],raw:[1404,1152,306],
+       lock:[0,0,0],pump,state:"NORMAL",alive:[2,3],ip:"10.0.11.1"}},
+    2:{age:40,id:22,s:{node:2,zone:"control",seq:Math.floor(t/1000)+38,up:t+50000,joy:[1900,1905],sel:pump?pump-1:0,ml:60,
+       state:"NORMAL",alive:[1,3],ip:"10.0.22.1"}},
+    3:{age:610,id:33,s:{node:3,zone:"output",seq:Math.floor(t/1000)+35,up:t+48000,cup,raw:Math.round(cup*18),
+       state:"NORMAL",alive:[1,2],ip:"10.0.33.1"}}},
+    links:{1:{d:1,v:0},2:{d:1,v:0},3:{d:0,v:1}},deaf:[0,0,0],
+    radio:{sent:Math.floor(t/400)+120,relayed:Math.floor(t/900)+40,dropped:0,toobig:0},
+    log:[{t:-41000,m:"Node 2: boot"},{t:-38000,m:"Node 1: Node 2 (control) ALIVE"},{t:-37500,m:"Node 1: Node 3 (output) ALIVE"},
+      {t:-20000,m:"Node 2: operator ACK sent"},{t:-19900,m:"Node 1: ACK accepted - leaving SAFE"},
+      {t:-19800,m:"Node 2: SYSTEM NORMAL  zone: -"},{t:-9000,m:"Node 2: pour requested: coffee 60 mL"},
+      {t:-8900,m:"Node 1: coffee pump ON - 60 mL = 3000 ms"},{t:-5900,m:"Node 1: coffee pump OFF - pour done"}]};
+}
+
+/* ---------- boot ---------- */
+showTab(store.get("meshbarista.tab","live"));
+poll();
+setInterval(()=>{if(!document.hidden)poll();},POLL);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll();});
+</script>
+</body></html>
