@@ -7,6 +7,8 @@
 //          The ACK needs Node 3 back; without Node 2 the system then runs DEGRADED from the dashboard.
 // Radio:   ESP-NOW (barista_mesh.h). No router, no pairing: broadcast, with a one-hop relay.
 // Web:     hosts the dashboard (barista_web.h), so it stays reachable here when Node 2 is off.
+// Orders:  keeps the order queue. Anyone on the Wi-Fi orders from the dashboard; the operator pours
+//          the next order (joystick click or dashboard), and the drink's ingredients pour one by one.
 //
 // Libraries: ArduinoJson. ESP-NOW and WebServer come with the ESP32 board package.
 // Files:     barista_mesh.h, barista_web.h and dashboard_html.h must sit in this sketch folder.
@@ -70,6 +72,20 @@ uint32_t seq = 0;
 #include "barista_web.h"
 #include "barista_music.h"
 
+// ---------- order queue ----------
+struct Order { int id; char name[ORDER_NAME_MAX + 1]; int drink; };
+const int QUEUE_MAX = 7;                 // the queue message must fit one ESP-NOW frame (250 bytes)
+const unsigned long STEP_GAP_MS = 400;   // pause between a drink's ingredients
+Order queue[QUEUE_MAX];
+int   queueLen = 0, nextOrderId = 1;
+Order cur;                               // the order being poured
+bool  curActive = false;
+int   curStep = -1, lastStartedId = 0;   // curStep: the ingredient being poured (0 coffee .. 2 cream)
+unsigned long nextStepAt = 0;            // when to pour the next ingredient, 0 = not waiting
+String seenKeys[16];                     // keys of recent orders, to drop duplicate copies
+int    seenHead = 0;
+void finishOrder(const String& msg);     // used by stopPump, defined with the queue below
+
 // ---------- messaging ----------
 void addHeader(JsonDocument& doc) {
   doc["node"] = NODE_ID;
@@ -98,6 +114,7 @@ void sendStatus() {
   JsonArray lock = doc.createNestedArray("lock");
   for (int i = 0; i < 3; i++) { lvl.add(levelPct[i]); raw.add(levelRaw[i]); lock.add(locked[i] ? 1 : 0); }
   doc["pump"]  = pumping + 1;  // 0 none, 1 coffee, 2 milk, 3 cream
+  if (curActive) doc["ord"] = cur.id;
   doc["state"] = STATE_NAME[state];
   if (state == SAFE) doc["why"] = safeWhy;
   JsonArray alive = doc.createNestedArray("alive");  // link status as this node sees it
@@ -118,6 +135,10 @@ void stopPump(const String& why) {
   musicStop();
   gurgleStop();
   logEvent(name + " pump OFF - " + why);
+  if (curActive) {
+    if (why == "pour done") nextStepAt = millis() + STEP_GAP_MS;  // on to the drink's next ingredient
+    else finishOrder(String("order #") + cur.id + " stopped: " + why);
+  }
   sendStatus();
 }
 
@@ -180,12 +201,114 @@ void readLevels() {
   updateState();
 }
 
+// ---------- order queue ----------
+// {"node":1,"seq":9,"queue":[[4,"Ana",1],[5,"Sam",0]],"cur":[3,"Dan",2,0]}   cur: id, name, drink, step
+void sendQueue() {
+  DynamicJsonDocument doc(768);
+  doc["node"] = NODE_ID;
+  doc["seq"]  = seq++;
+  JsonArray q = doc.createNestedArray("queue");
+  for (int i = 0; i < queueLen; i++) {
+    JsonArray e = q.createNestedArray();
+    e.add(queue[i].id);
+    e.add(queue[i].name);
+    e.add(queue[i].drink);
+  }
+  if (curActive) {
+    JsonArray c = doc.createNestedArray("cur");
+    c.add(cur.id);
+    c.add(cur.name);
+    c.add(cur.drink);
+    c.add(curStep);
+  }
+  meshSend(doc);
+  String out;
+  serializeJson(doc, out);
+  webQueueStore(out);
+}
+
+void finishOrder(const String& msg) {
+  curActive  = false;
+  curStep    = -1;
+  nextStepAt = 0;
+  logEvent(msg);
+  sendQueue();
+  sendStatus();
+}
+
+// Pour the drink's next ingredient, or finish the order when there is none left.
+void advanceOrder() {
+  int s = curStep + 1;
+  while (s < 3 && DRINK_ML[cur.drink][s] == 0) s++;
+  String tag = String("order #") + cur.id;
+  if (s >= 3)                 { finishOrder(tag + " ready: " + cur.name + "'s " + DRINK_NAME[cur.drink]); return; }
+  if (state == SAFE)          { finishOrder(tag + " stopped: SAFE"); return; }
+  if (locked[s])              { finishOrder(tag + " stopped: " + ING[s] + " reservoir low"); return; }
+  if (cupPct >= CUP_FULL_PCT) { finishOrder(tag + " stopped: cup full"); return; }
+  curStep = s;
+  sendQueue();
+  startPump(s, DRINK_ML[cur.drink][s]);
+}
+
+void handleOrder(JsonDocument& doc) {
+  const char* key = doc["k"] | "";
+  if (!*key) return;
+  for (auto& k : seenKeys) if (k == key) return;  // a second copy of an order already taken
+  seenKeys[seenHead] = key;
+  seenHead = (seenHead + 1) % 16;
+
+  Order o = {};
+  int n = 0;  // name: printable ASCII only, without quotes or backslashes
+  for (const char* c = doc["n"] | ""; *c && n < ORDER_NAME_MAX; c++)
+    if (*c >= 32 && *c < 127 && *c != '"' && *c != '\\' && (n || *c != ' ')) o.name[n++] = *c;
+  o.name[n] = 0;
+  o.drink   = doc["d"] | -1;
+  if (!n || o.drink < 0 || o.drink >= DRINKS) { logEvent("order refused: bad request"); return; }
+  if (queueLen >= QUEUE_MAX) { logEvent(String("order refused: the queue is full (") + QUEUE_MAX + " waiting)"); return; }
+  o.id = nextOrderId++;
+  queue[queueLen++] = o;
+  logEvent(String("order #") + o.id + ": " + o.name + " - " + DRINK_NAME[o.drink]);
+  sendQueue();
+}
+
+// Start the order at the head of the queue. `id` must name it, so a duplicate copy of this command
+// (relayed twice) or one sent from a page that is out of date does nothing.
+void handleNext(int id) {
+  if (id == lastStartedId) return;  // a second copy of a command already carried out
+  if (curActive)              { logEvent("next order refused: an order is pouring"); return; }
+  if (!queueLen)              { logEvent("next order refused: the queue is empty"); return; }
+  if (queue[0].id != id)      { logEvent("next order refused: the queue changed, try again"); return; }
+  if (state == SAFE)          { logEvent("next order refused: SAFE (" + safeWhy + ")"); return; }
+  if (pumping >= 0)           { logEvent("next order refused: already pouring"); return; }
+  if (cupPct >= CUP_FULL_PCT) { logEvent("next order refused: cup full"); return; }
+  cur = queue[0];
+  for (int i = 1; i < queueLen; i++) queue[i - 1] = queue[i];
+  queueLen--;
+  curActive     = true;
+  curStep       = -1;
+  lastStartedId = cur.id;
+  logEvent(String("order #") + cur.id + " pouring: " + cur.name + " - " + DRINK_NAME[cur.drink]);
+  advanceOrder();
+}
+
+void handleDrop(int id) {
+  for (int i = 0; i < queueLen; i++) {
+    if (queue[i].id != id) continue;
+    logEvent(String("order #") + id + " removed: " + queue[i].name);
+    for (int j = i + 1; j < queueLen; j++) queue[j - 1] = queue[j];
+    queueLen--;
+    sendQueue();
+    return;
+  }
+}
+
 // ---------- commands: from Node 2's joystick, or from the dashboard on any node ----------
 void handlePour(int i, float ml) {
   if (i < 0 || i > 2 || ml <= 0 || ml > MAX_POUR_ML) { logEvent("pour refused: bad request"); return; }
   if (state == SAFE)          { logEvent("pour refused: SAFE (" + safeWhy + ")"); return; }
   if (locked[i])              { logEvent(String("pour refused: ") + ING[i] + " reservoir low"); return; }
   if (pumping >= 0)           { logEvent("pour refused: already pouring"); return; }
+  if (curActive)              { logEvent("pour refused: an order is pouring"); return; }
   if (cupPct >= CUP_FULL_PCT) { logEvent("pour refused: cup full"); return; }
   startPump(i, ml);
 }
@@ -204,8 +327,13 @@ void handleAck() {
 void handleCmd(const char* cmd, int to, int ing, float ml) {
   if (!strcmp(cmd, "pour"))      handlePour(ing, ml);
   else if (!strcmp(cmd, "ack"))  handleAck();
-  else if (!strcmp(cmd, "stop")) stopPump("stopped from the dashboard");
+  else if (!strcmp(cmd, "stop")) {
+    stopPump("stopped from the dashboard");
+    if (curActive) finishOrder(String("order #") + cur.id + " stopped from the dashboard");  // between ingredients
+  }
   else if (!strcmp(cmd, "trip")) enterSafe("tripped from the dashboard");
+  else if (!strcmp(cmd, "next")) handleNext(ing);  // ing carries the order id
+  else if (!strcmp(cmd, "drop")) handleDrop(ing);
   else if (!strcmp(cmd, "buzz") && to == NODE_ID) buzzTestUntil = millis() + 1000;
   // Demo aid: make node `to` act as if node `ing` were out of range, to show the relay path.
   else if (!strcmp(cmd, "deaf") && to == NODE_ID && ing >= 1 && ing <= 3) {
@@ -220,7 +348,10 @@ void onMeshMessage(const String& raw, JsonDocument& doc, int src, int hop, int v
   if (!doc["evt"].isNull())   webLog(String("Node ") + src + ": " + doc["evt"].as<const char*>());
   if (!doc["state"].isNull()) webStore(src, raw);  // a status message: keep it for the dashboard
   if (src == 3) cupPct = doc["cup"] | cupPct;
-  if (!doc["cmd"].isNull()) handleCmd(doc["cmd"] | "", doc["to"] | 0, doc["ing"] | -1, doc["ml"] | 0.0f);
+  if (!doc["cmd"].isNull()) {
+    if (!strcmp(doc["cmd"] | "", "order")) handleOrder(doc);
+    else handleCmd(doc["cmd"] | "", doc["to"] | 0, doc["ing"] | -1, doc["ml"] | 0.0f);
+  }
 }
 
 void setup() {
@@ -249,7 +380,7 @@ void setup() {
 }
 
 void loop() {
-  static unsigned long lastRead = 0, lastBeat = 0;
+  static unsigned long lastRead = 0, lastBeat = 0, lastQueue = 0;
   esp_task_wdt_reset();  // still alive
   meshLoop();
   webLoop();
@@ -258,6 +389,8 @@ void loop() {
   if (now - lastRead >= 200) { lastRead = now; readLevels(); }
   updatePour();
   if (now - lastBeat >= HEARTBEAT_MS) { lastBeat = now; sendStatus(); }
+  if (now - lastQueue >= 2000) { lastQueue = now; sendQueue(); }  // so a node that just joined has it too
+  if (curActive && pumping < 0 && nextStepAt && now >= nextStepAt) { nextStepAt = 0; advanceOrder(); }
   bool alarm = state == SAFE && safeWhy != "boot";  // a fresh boot is not a fault: stay quiet until one happens
   bool beep  = now < buzzTestUntil || (alarm && (now / 300) % 2);
   if (alarm) { musicStop(); gurgleStop(); }

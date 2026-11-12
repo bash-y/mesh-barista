@@ -56,9 +56,12 @@ String n1State = "SAFE", n1Why = "waiting for Node 1";  // latest from Node 1
 int    n1Pump  = 0;                                      // 0 none, 1 coffee, 2 milk, 3 cream
 String view = "SAFE", viewWhy = "";                      // system state as this node sees it
 uint32_t seq = 0;
+String curName = "";                                     // whose order Node 1 is pouring, "" = none
 
 #include "barista_mesh.h"
 #include "barista_web.h"
+
+void handleOrder(JsonDocument& doc) {}  // Node 1 keeps the queue
 
 // ---------- messaging ----------
 void addHeader(JsonDocument& doc) {
@@ -124,6 +127,10 @@ void onMeshMessage(const String& raw, JsonDocument& doc, int src, int hop, int v
   if (!doc["evt"].isNull())   webLog(String("Node ") + src + ": " + doc["evt"].as<const char*>());
   if (!doc["state"].isNull()) webStore(src, raw);  // a status message: keep it for the dashboard
   if (!doc["cmd"].isNull())   handleCmd(doc["cmd"] | "", doc["to"] | 0, doc["ing"] | -1, doc["ml"] | 0.0f);
+  if (src == 1 && !doc["queue"].isNull()) {  // the order queue: keep it for the dashboard
+    webQueueStore(raw);
+    curName = doc["cur"].isNull() ? "" : doc["cur"][1].as<const char*>();
+  }
   if (src == 1 && !doc["state"].isNull()) {
     n1State = doc["state"].as<const char*>();
     n1Why   = doc["why"] | "";
@@ -178,6 +185,7 @@ void updateOled() {
   oled.print(node1.alive ? "N1 OK    " : "N1 LOST  ");
   oled.println(node2.alive ? "N2 OK" : "N2 LOST");
   oled.println(viewWhy);
+  if (node1.alive && curName.length()) { oled.print("For:   "); oled.println(curName); }
   oled.display();
 }
 

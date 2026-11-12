@@ -17,7 +17,7 @@ Presentation: [docs/Mesh-Barista-Presentation.pdf](docs/Mesh-Barista-Presentatio
 | 3 | Output (spec Node B) | cup water sensor, OLED, RGB status LED |
 
 - Radio: ESP-NOW broadcast with a one-hop relay (`barista_mesh.h`). No router, no pairing.
-- Messages: JSON with node, zone, seq, uptime, readings and state. Largest is about 175 bytes (limit 250).
+- Messages: JSON with node, zone, seq, uptime, readings and state. Largest (a full order queue) is about 225 bytes (limit 250).
 - Cross-node rule: Node 1 stops its pump when Node 3 reports the cup at 90 %.
 - Fail-safe: Node 1 goes SAFE on its own (pumps off, buzzer on) when it loses Node 2 or Node 3.
   Leaving SAFE needs an operator acknowledge, and Node 3 must be back. Without Node 2 the system
@@ -30,6 +30,13 @@ Join the Wi-Fi (`MESH_SSID` / `MESH_PASSWORD`) and open **http://barista.io**. T
 while you are on that Wi-Fi: each node answers every DNS lookup with its own address, 192.168.4.1.
 Type the `http://` part, and turn mobile data off on a phone so the lookup goes to the node.
 It keeps working when any one node is off. Node 2 also prints a text dashboard on USB serial (115200).
+
+**Orders.** The dashboard opens on an Order tab: anyone on the Wi-Fi enters a name and picks a drink
+(black coffee, latte, coffee & cream, glass of milk). Node 1 keeps the queue (up to 7) and pours a
+drink's ingredients one after another. The operator starts each order: a joystick click pours the next
+one (Node 2's OLED shows who is next), or open **http://barista.io/#op** for Pour next and Remove
+buttons. The page tells each person when their drink is ready. Leave `MESH_PASSWORD` empty (`""`) for
+an open network anyone in the room can join.
 
 ## Build
 

@@ -9,6 +9,7 @@
 //   /      the page (dashboard_html.h, gzipped)
 //   /data  JSON: the latest status from every node, this node's links, and the event log
 //   /cmd   a test command (c, to, ing, ml): broadcast to the mesh and run on this node
+//   /order a drink order (n name, d drink, k random key): broadcast; Node 1 keeps the queue
 //
 // Include it once, from the sketch, after barista_mesh.h.
 #include <WebServer.h>
@@ -18,6 +19,16 @@
 // provided by each sketch
 void handleCmd(const char* cmd, int to, int ing, float ml);  // acts only on the commands meant for this node
 void addHeader(JsonDocument& doc);
+void handleOrder(JsonDocument& doc);  // Node 1 queues the order; the other nodes leave it empty
+
+// ---------- drink menu and order queue ----------
+// The menu. dashboard.html (DRINKS) lists the same drinks in the same order.
+const int   DRINKS = 4;
+const char* DRINK_NAME[DRINKS]  = {"Black coffee", "Latte", "Coffee & cream", "Glass of milk"};
+const int   DRINK_ML[DRINKS][3] = {{60, 0, 0}, {30, 45, 0}, {50, 0, 15}, {0, 60, 0}};  // mL of coffee, milk, cream
+const int   ORDER_NAME_MAX = 10;  // characters; keeps the queue message inside one ESP-NOW frame
+String webQueue;                  // the latest queue message from Node 1 (raw JSON), for /data
+void webQueueStore(const String& raw) { webQueue = raw; }
 
 const char* WEB_HOST = "barista.io";  // the name to type; any other name lands on the dashboard too
 
@@ -78,7 +89,9 @@ void webData() {
   out += String(meshDropped);
   out += ",\"toobig\":";
   out += String(meshTooBig);
-  out += "},\"log\":[";
+  out += "},\"queue\":";
+  out += webQueue.length() ? webQueue : String("null");
+  out += ",\"log\":[";
   bool first = true;
   for (int i = 0; i < WEB_LOG_N; i++) {  // oldest first
     WebEvent& e = webEvents[(webLogHead + i) % WEB_LOG_N];
@@ -119,10 +132,33 @@ void webCmd() {
   webServer.send(200, "text/plain", "sent");
 }
 
+// An order from a phone. Every node accepts it and broadcasts it; Node 1 checks it and queues it.
+// The random key lets Node 1 drop a second copy of the same order (relayed twice, or a retry).
+void webOrder() {
+  String name = webServer.arg("n"), key = webServer.arg("k");
+  int    d    = webServer.arg("d").toInt();
+  name.trim();
+  webServer.sendHeader("Access-Control-Allow-Origin", "*");
+  if (!name.length() || name.length() > 40 || key.length() < 4 || key.length() > 8 || d < 0 || d >= DRINKS) {
+    webServer.send(400, "text/plain", "bad order");
+    return;
+  }
+  DynamicJsonDocument doc(256);
+  addHeader(doc);
+  doc["cmd"] = "order";
+  doc["n"]   = name.substring(0, ORDER_NAME_MAX);
+  doc["d"]   = d;
+  doc["k"]   = key;
+  meshSend(doc);
+  handleOrder(doc);  // on Node 1 this queues it; elsewhere it does nothing
+  webServer.send(200, "text/plain", "sent");
+}
+
 void webBegin() {
   webServer.on("/", webPage);
   webServer.on("/data", webData);
   webServer.on("/cmd", webCmd);
+  webServer.on("/order", webOrder);
   // Anything else (a phone's "is there internet?" probe, a mistyped path) is sent to the dashboard.
   webServer.onNotFound([]() {
     webServer.sendHeader("Location", String("http://") + WEB_HOST + "/");

@@ -180,6 +180,29 @@ pre.log{margin:0;background:var(--surface2);border:1px solid var(--line);border-
 .paths li:last-child{border-bottom:0}
 .assign.first{border-top:0;margin-top:0;padding-top:0}
 .session-top .push{margin-left:auto}
+/* ---------- order tab ---------- */
+.field{display:flex;flex-direction:column;gap:5px;max-width:360px}
+.field input{padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);font-size:16px}
+.menu{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:14px}
+.drink{text-align:left;border:1px solid var(--line);background:var(--surface2);border-radius:10px;padding:12px 13px;
+  cursor:pointer;min-height:66px;display:flex;flex-direction:column;gap:3px}
+.drink b{font-size:15px;font-weight:650}
+.drink span{font-size:12px;color:var(--muted)}
+.drink:hover{border-color:var(--accent)}
+.drink[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);
+  background:color-mix(in srgb,var(--accent) 11%,var(--surface))}
+.nowpour{border:1px solid color-mix(in srgb,var(--ok) 45%,var(--line));border-radius:10px;padding:12px 14px;
+  margin-bottom:10px;background:color-mix(in srgb,var(--ok) 9%,var(--surface));display:flex;gap:6px 12px;
+  align-items:center;flex-wrap:wrap}
+.nowpour b{font-size:15px}
+.steps-inline{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.queue{list-style:none;margin:0;padding:0}
+.queue li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:14px}
+.queue li:last-child{border-bottom:0}
+.queue .pos{font-family:var(--mono);color:var(--muted);flex:0 0 2.2em}
+.queue .who{font-weight:650;overflow-wrap:anywhere}
+.queue .what{color:var(--muted);margin-right:auto}
+.queue li.mine .pos{color:var(--accent);font-weight:700}
 </style>
 
 <header class="bar">
@@ -193,6 +216,7 @@ pre.log{margin:0;background:var(--surface2);border:1px solid var(--line);border-
 
 <div class="wrap">
   <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="false" data-page="order">Order</button>
     <button class="tab" role="tab" aria-selected="true" data-page="live">Live</button>
     <button class="tab" role="tab" aria-selected="false" data-page="test">Test</button>
     <button class="tab" role="tab" aria-selected="false" data-page="system">System</button>
@@ -208,6 +232,30 @@ pre.log{margin:0;background:var(--surface2);border:1px solid var(--line);border-
   <div class="banner demo" id="failbar" hidden>
     <b id="failhead">Reading from another node.</b><span>Your device hopped to a different node's Wi-Fi.</span>
   </div>
+
+  <!-- ============================ ORDER =========================== -->
+  <section class="page" id="page-order" hidden>
+    <div class="card">
+      <div class="card-head"><h2>Order a drink</h2><span class="lbl">poured in turn</span></div>
+      <label class="field"><span class="lbl">Your name</span>
+        <input id="oname" maxlength="10" autocomplete="given-name" autocapitalize="words" placeholder="Up to 10 letters"></label>
+      <div class="menu" id="menu" role="radiogroup" aria-label="Drink"></div>
+      <div class="rowbtns" style="margin-top:14px">
+        <button class="btn" type="button" id="orderbtn">Place order</button>
+      </div>
+      <p class="hint" id="ordermsg">Pick a drink and enter your name. The barista pours the orders in turn, and this page tells you when yours is ready.</p>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Queue</h2><span class="lbl" id="qlbl">—</span></div>
+      <div class="nowpour" id="nowpour" hidden></div>
+      <ol class="queue" id="queue"><li class="muted">Waiting for the first reading…</li></ol>
+      <div class="rowbtns" id="opbtns" style="margin-top:12px" hidden>
+        <button class="btn" type="button" id="nextbtn" data-cmd="next" data-need="1" data-label="Pour next order">Pour next order</button>
+      </div>
+      <p class="hint" id="ophint" hidden>Operator view (this page was opened with <span class="mono">#op</span>). Pour next starts
+        the order at the top, the same as a joystick click. Put an empty cup under the outlet first.</p>
+    </div>
+  </section>
 
   <!-- ============================ LIVE ============================ -->
   <section class="page" id="page-live">
@@ -354,6 +402,9 @@ const $=s=>document.querySelector(s), el=(t,c,x)=>{const n=document.createElemen
   if(x!==undefined)n.textContent=x;return n;};
 const POLL=1000, LOST_MS=5000, TIMEOUT=1500;
 const ZONES={1:"pump station",2:"control",3:"output"}, ING=["coffee","milk","cream"];
+// The menu: the same drinks, in the same order, as DRINK_NAME / DRINK_ML in barista_web.h.
+const DRINKS=[{n:"Black coffee",ml:[60,0,0]},{n:"Latte",ml:[30,45,0]},{n:"Coffee & cream",ml:[50,0,15]},{n:"Glass of milk",ml:[0,60,0]}];
+const OP=location.hash==="#op";  // operator view: pour next and remove buttons
 let data=null, demo=false, firstTry=true, misses=0, busy=false;
 let epoch=0, epochNode=0, lastT=-1, firstMe=0;   // epoch: this browser's clock time at the serving node's boot
 // Addresses to read from. "" is the node that served this page; the others are learned from the
@@ -419,6 +470,8 @@ function use(d){
   let newest=lastT;
   for(const ev of d.log||[]){
     if(ev.t>lastT&&lastT>=0&&/refused|rejected|ignored/.test(ev.m))toast(ev.m,"err");
+    const ready=ev.t>lastT&&lastT>=0&&/order #\d+ ready: (.+)'s (.+)$/.exec(ev.m);
+    if(ready&&isMe(ready[1])){toast("Your "+ready[2]+" is ready!","ok");try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}}
     if(ev.t>newest)newest=ev.t;
   }
   lastT=Math.max(newest,0);
@@ -487,6 +540,9 @@ function render(){
   const safe=N[1].alive&&s1.state==="SAFE";
   $("#ackbtn").hidden=!safe;$("#stopbtn").hidden=!pump;$("#livebtns").hidden=!safe&&!pump;
 
+  /* order queue */
+  renderQueue(d,N,safe);
+
   /* reservoirs and cup */
   for(let i=0;i<3;i++){
     const v=s1.lvl?s1.lvl[i]:null, lock=!!(s1.lock&&s1.lock[i]);
@@ -541,7 +597,8 @@ function render(){
   const hops=[1,2,3].filter(n=>n!==d.me&&((d.links||{})[n]||{}).v);
   $("#rangelbl").textContent=hops.length?"multi-hop to Node "+hops.join(", Node "):"every node is heard directly";
   document.querySelectorAll("[data-need]").forEach(b=>{const off=!demo&&!N[b.dataset.need].alive;
-    b.disabled=off;b.title=off?"Node "+b.dataset.need+" is not connected":"";});
+    if(b.id==="nextbtn"){if(off)b.disabled=true;}else b.disabled=off;
+    b.title=off?"Node "+b.dataset.need+" is not connected":"";});
   const raw=s1.raw||[], ig=$("#inputs");ig.textContent="";
   ig.append(fact("Joystick X",s2.joy?String(s2.joy[0]):"—","num"),fact("Joystick Y",s2.joy?String(s2.joy[1]):"—","num"),
     fact("Menu selection",s2.sel==null?"—":ING[s2.sel]+", "+s2.ml+" mL","text"));
@@ -562,6 +619,68 @@ function render(){
     fact("Node "+n+" messages sent",N[n].s.seq==null?"—":String(N[n].s.seq)));
   $("#raw").textContent=JSON.stringify(d,null,1);
 }
+
+/* ---------- orders ---------- */
+const myName=()=>store.get("meshbarista.name","");
+const isMe=n=>!!myName()&&n.toLowerCase()===myName().toLowerCase();
+const recipe=ml=>ml.map((v,i)=>v?v+" mL "+ING[i]:"").filter(Boolean).join(" + ");
+let pick=Math.min(DRINKS.length-1,Math.max(0,Number(store.get("meshbarista.drink","0"))||0));
+function buildMenu(){
+  const m=$("#menu");m.textContent="";
+  DRINKS.forEach((x,i)=>{const b=el("button","drink");b.type="button";b.setAttribute("role","radio");
+    b.setAttribute("aria-checked",String(i===pick));b.append(el("b",null,x.n),el("span",null,recipe(x.ml)));
+    b.onclick=()=>{pick=i;store.set("meshbarista.drink",String(i));buildMenu();};m.append(b);});
+}
+function renderQueue(d,N,safe){
+  const Q=d.queue, live=N[1].alive, list=$("#queue");
+  list.textContent="";
+  $("#qlbl").textContent=!Q?(N[1].seen?"Node 1 has not sent the queue yet":"waiting for Node 1")
+    :(Q.queue.length+" waiting")+(live?"":" · last known, Node 1 is LOST");
+  const cur=Q&&Q.cur, np=$("#nowpour");
+  np.hidden=!cur;np.textContent="";
+  if(cur){
+    const dr=DRINKS[cur[2]]||{n:"?",ml:[0,0,0]}, steps=el("span","steps-inline");
+    dr.ml.forEach((v,i)=>{if(v)steps.append(pill(ING[i],i===cur[3]?"ok":i<cur[3]?"":"cool"));});
+    np.append(el("span","lbl","Now pouring"),el("b",null,cur[1]),el("span",null,dr.n),steps);
+    if(isMe(cur[1]))np.append(pill("yours","ok"));
+  }
+  const q=Q?Q.queue:[];
+  q.forEach((e,i)=>{
+    const li=el("li",isMe(e[1])?"mine":null);
+    li.append(el("span","pos",String(i+1)),el("span","who",e[1]),el("span","what",(DRINKS[e[2]]||{n:"?"}).n));
+    if(isMe(e[1]))li.append(pill("you","cool"));
+    if(OP){const b=el("button","btn ghost small","Remove");b.type="button";b.dataset.cmd="drop";
+      b.dataset.args=JSON.stringify({ing:e[0]});b.dataset.need="1";b.dataset.label="Remove "+e[1];li.append(b);}
+    list.append(li);
+  });
+  if(!q.length){const li=el("li","muted",cur?"Nobody else waiting.":"Nobody waiting. Order something!");list.append(li);}
+  // what to tell the person holding this phone
+  const mine=q.findIndex(e=>isMe(e[1]));
+  $("#ordermsg").textContent=cur&&isMe(cur[1])?"Your drink is pouring now."
+    :mine>=0?"You are number "+(mine+1)+" in line."+(mine===0?" You're next!":"")
+    :"Pick a drink and enter your name. The barista pours the orders in turn, and this page tells you when yours is ready.";
+  // operator controls
+  $("#opbtns").hidden=!OP;$("#ophint").hidden=!OP;
+  const nb=$("#nextbtn");
+  nb.dataset.args=JSON.stringify({ing:q.length?q[0][0]:0});
+  nb.textContent=q.length?"Pour next: "+q[0][1]+", "+(DRINKS[q[0][2]]||{n:"?"}).n:"Pour next order";
+  nb.disabled=!q.length||!!cur||safe||!live;
+}
+async function placeOrder(){
+  if(demo){toast("Not connected: this is demo data.","err");return;}
+  const name=$("#oname").value.replace(/[^\x20-\x7E]|["\\]/g,"").trim().slice(0,10);
+  if(!name){toast("Enter your name (letters A to Z) so the barista can call it.","err");$("#oname").focus();return;}
+  const k=Math.floor(Math.random()*0xffffff).toString(16).padStart(6,"0");
+  try{
+    await request(bases[bi]+"/order",{method:"POST",body:new URLSearchParams({n:name,d:pick,k})});
+    store.set("meshbarista.name",name);$("#oname").value=name;
+    toast(DRINKS[pick].n+" for "+name+": ordered","ok");setTimeout(poll,250);
+  }catch(e){toast("No answer from the node, so the order was not sent. Try again.","err");}
+}
+$("#orderbtn").onclick=placeOrder;
+$("#oname").addEventListener("keydown",e=>{if(e.key==="Enter")placeOrder();});
+$("#oname").value=myName();
+buildMenu();
 
 /* ---------- commands ---------- */
 async function send(c,args,label){
@@ -598,6 +717,7 @@ function demoData(){
     3:{age:610,id:33,s:{node:3,zone:"output",seq:Math.floor(t/1000)+35,up:t+48000,cup,raw:Math.round(cup*18),
        state:"NORMAL",alive:[1,2],ip:"10.0.33.1"}}},
     links:{1:{d:1,v:0},2:{d:1,v:0},3:{d:0,v:1}},deaf:[0,0,0],
+    queue:{node:1,queue:[[4,"Ana",1],[5,"Sam",0],[6,"Lee",3]],cur:[3,"Dan",1,1]},
     radio:{sent:Math.floor(t/400)+120,relayed:Math.floor(t/900)+40,dropped:0,toobig:0},
     log:[{t:-41000,m:"Node 2: boot"},{t:-38000,m:"Node 1: Node 2 (control) ALIVE"},{t:-37500,m:"Node 1: Node 3 (output) ALIVE"},
       {t:-20000,m:"Node 2: operator ACK sent"},{t:-19900,m:"Node 1: ACK accepted - leaving SAFE"},
@@ -606,7 +726,7 @@ function demoData(){
 }
 
 /* ---------- boot ---------- */
-showTab(store.get("meshbarista.tab","live"));
+showTab(store.get("meshbarista.tab","order"));
 poll();
 setInterval(()=>{if(!document.hidden)poll();},POLL);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)poll();});

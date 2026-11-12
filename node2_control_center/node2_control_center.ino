@@ -2,6 +2,7 @@
 //
 // Owns:    joystick (menu), OLED, buzzer, and the dashboard on USB serial (115200 baud).
 // Joystick: left/right = coffee/milk/cream, up/down = mL, click = pour. In SAFE, click = operator ACK.
+//           With orders waiting in the queue, click = pour the next order instead.
 // Dashboard (reprinted every second): each node ALIVE/LOST + time since heartbeat, sensor values,
 //          pump state, system state, affected zone, live mesh topology, and a timestamped event log.
 // Radio:   ESP-NOW (barista_mesh.h). No router, no pairing: broadcast, with a one-hop relay.
@@ -60,10 +61,15 @@ int    sel = 0, ml = 60;           // menu selection
 int    joyX = 0, joyY = 0;
 unsigned long buzzTestUntil = 0;   // dashboard buzzer test
 uint32_t seq = 0;
+// the order queue, as Node 1 last broadcast it
+int    qLen = 0, qHeadId = -1, qHeadDrink = 0, n1Ord = -1, curDrink = 0;
+String qHeadName = "", curName = "";
 
 #include "barista_mesh.h"
 #include "barista_web.h"
 #include "barista_music.h"
+
+void handleOrder(JsonDocument& doc) {}  // Node 1 keeps the queue
 
 // ---------- messaging ----------
 void addHeader(JsonDocument& doc) {
@@ -140,6 +146,17 @@ void onMeshMessage(const String& raw, JsonDocument& doc, int src, int hop, int v
   checkPeers();
   if (!doc["evt"].isNull()) webLog(String("Node ") + src + ": " + doc["evt"].as<const char*>());
   if (!doc["cmd"].isNull()) handleCmd(doc["cmd"] | "", doc["to"] | 0, doc["ing"] | -1, doc["ml"] | 0.0f);
+  if (src == 1 && !doc["queue"].isNull()) {  // the order queue
+    webQueueStore(raw);
+    JsonArrayConst q = doc["queue"].as<JsonArrayConst>();
+    qLen = q.size();
+    qHeadId    = qLen ? q[0][0].as<int>() : -1;
+    qHeadName  = qLen ? q[0][1].as<const char*>() : "";
+    qHeadDrink = qLen ? q[0][2].as<int>() : 0;
+    curName    = doc["cur"].isNull() ? "" : doc["cur"][1].as<const char*>();
+    curDrink   = doc["cur"][2] | 0;
+    return;
+  }
   if (doc["state"].isNull()) return;  // an event or a command, not a status message
   webStore(src, raw);
 
@@ -148,6 +165,7 @@ void onMeshMessage(const String& raw, JsonDocument& doc, int src, int hop, int v
   if (src == 1) {
     for (int i = 0; i < 3; i++) lvl[i] = doc["lvl"][i] | -1;
     pump    = doc["pump"] | 0;
+    n1Ord   = doc["ord"] | -1;  // the order being poured, -1 = none
     n1State = doc["state"].as<const char*>();
     n1Why   = doc["why"] | "";
     n1Sees  = sees;
@@ -166,6 +184,13 @@ void onClick() {
   if (n1State == "SAFE") {
     doc["cmd"] = "ack";
     logEvent("operator ACK sent");
+  } else if (n1Ord >= 0) {
+    logEvent("click ignored: an order is pouring");
+    return;
+  } else if (qLen > 0) {
+    doc["cmd"] = "next";
+    doc["ing"] = qHeadId;  // name the order, so a duplicate copy of this command does nothing
+    logEvent(String("pour next order: #") + qHeadId + " " + qHeadName);
   } else {
     doc["cmd"] = "pour";
     doc["ing"] = sel;
@@ -211,6 +236,8 @@ void printDashboard() {
   Serial.printf("Node 3  output        %-5s  last hb %-6s  cup %d%%  state: %s  sees: %s%s\n",
                 node3.alive ? "ALIVE" : "LOST", ago(node3.lastSeen).c_str(), cup,
                 n3State.c_str(), n3Sees.c_str(), node3.alive ? "" : " (stale)");
+  Serial.printf("ORDERS  %d waiting%s%s   pouring: %s\n", qLen, qLen ? ", next: " : "", qLen ? qHeadName.c_str() : "",
+                n1Ord >= 0 ? (curName + " - " + DRINK_NAME[curDrink]).c_str() : "none");
 
   Serial.println("LINKS (as Node 2 hears them):");
   for (int n = 1; n <= 3; n++) {
@@ -236,18 +263,28 @@ void updateOled() {
   oled.setCursor(0, 0);
   oled.print("Node 2  ");
   oled.println(WEB_HOST);  // the dashboard address
-  oled.setTextSize(2);
-  oled.print(">");
-  oled.println(ING[sel]);
-  oled.print(" ");
-  oled.print(ml);
-  oled.println(" mL");
-  oled.setTextSize(1);
+  bool pouringOrder = node1.alive && n1Ord >= 0, waiting = node1.alive && qLen > 0;
+  if (pouringOrder || waiting) {  // the queue: whose drink is pouring, or who is next
+    if (pouringOrder) oled.println("Pouring for:");
+    else { oled.print("Next of "); oled.print(qLen); oled.println(" waiting:"); }
+    oled.setTextSize(2);
+    oled.println(pouringOrder ? curName : qHeadName);
+    oled.setTextSize(1);
+    oled.println(DRINK_NAME[pouringOrder ? curDrink : qHeadDrink]);
+  } else {                        // no orders: the joystick menu
+    oled.setTextSize(2);
+    oled.print(">");
+    oled.println(ING[sel]);
+    oled.print(" ");
+    oled.print(ml);
+    oled.println(" mL");
+    oled.setTextSize(1);
+  }
   oled.print("System: ");
   oled.println(sysState);
   oled.print("Pump:   ");
   oled.println(pump ? ING[pump - 1] : "off");
-  oled.println(sysState == "SAFE" ? "Click = ACK" : "Click = POUR");
+  oled.println(sysState == "SAFE" ? "Click = ACK" : pouringOrder ? "Pouring..." : waiting ? "Click = POUR NEXT" : "Click = POUR");
   oled.display();
 }
 
@@ -288,7 +325,7 @@ void loop() {
   bool beep  = now < buzzTestUntil || (alarm && (now / 300) % 2);
   // Music follows Node 1's pump: the melody while it runs (Node 1 plays the bass), then "drink ready".
   static int lastPump = 0;
-  int p = node1.alive ? pump : 0;  // a lost Node 1's last pump value is stale: don't play to it
+  int p = node1.alive && (pump || n1Ord >= 0);  // a whole order, not each ingredient; a lost Node 1 is stale
   if (MUSIC_ON && p && !lastPump) musicPlay(TUNE(TUNE_MELODY), true, now);
   if (!p && lastPump) { if (MUSIC_ON && node1.alive) musicPlay(TUNE(TUNE_READY), false, now); else musicStop(); }
   lastPump = p;
