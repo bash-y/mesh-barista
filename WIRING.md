@@ -130,8 +130,11 @@ Do these in order. Each one uses the dashboard: join the Wi-Fi the nodes create 
 5. **Joystick.** The Inputs card shows Joystick X and Y near 1900 at rest, moving toward 0 and 4095
    when pushed. A value stuck near 0 or 4095 means that axis wire, 3V3 or GND is loose.
 6. **Water sensors.** The Inputs card shows each raw value. Note it dry and at the full mark, then put
-   the numbers in `LEVEL_RAW_DRY` / `LEVEL_RAW_FULL` (Node 1) and `CUP_RAW_DRY` / `CUP_RAW_FULL`
-   (Node 3) and flash again.
+   the numbers in `LEVEL_RAW_DRY` / `LEVEL_RAW_FULL` (Node 1) and flash again. The cup sensor's strips
+   (2.0") are shorter than the cup (4.5"), so mount them with their top at the rim: they cover 2.5" to
+   4.5" of water (56 % to 100 %), and below that the cup reads 0 %. They are not linear, so note the
+   raw value dry and with water at 2.5", 3.0", 3.5", 4.0" and 4.5", put them in `CUP_RAW` (Node 3)
+   and flash again.
 7. **Pumps, with the pump supply on.** "Coffee pump, 10 mL", then milk, then cream. Each relay
    should click and its pump should run briefly.
 8. **Flow rate.** Pour 200 mL of one ingredient into a measuring cup and time it. Put mL divided by

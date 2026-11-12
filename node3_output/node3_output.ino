@@ -28,8 +28,16 @@ const int CUP_PIN    = 32;            // ADC1 only: ADC2 reads garbage while the
 const int RGB_PIN[3] = {25, 26, 27};  // R, G, B of a common-anode LED (V pin on 3V3): LOW = on
 
 // ---------- tuning ----------
-const int CUP_RAW_DRY  = 0;           // calibrate: analogRead() with the cup sensor dry
-const int CUP_RAW_FULL = 1800;        // calibrate: analogRead() with the cup at its max fill line
+// Cup calibration. The cup is 4.5" (114.3 mm) tall but the sensor's strips are only 50.7 mm (2.0")
+// (68.5 mm board minus the 17.8 mm connector), so it is mounted with the top of the strips at the rim
+// and covers 2.5" to 4.5" of water, i.e. 56 % to 100 %. Below 2.5" it reads dry and the cup shows 0 %.
+// The strips are not linear either, so: fill the cup to each height below and put the raw value
+// Node 3 prints on serial ("cup raw=") into CUP_RAW. The values must increase.
+//                    dry  2.5"  3.0"  3.5"  4.0"  4.5"
+const int CUP_PCT[] = {0,   56,   67,   78,   89,  100};
+const int CUP_RAW[] = {0,  700, 1100, 1400, 1650, 1800};   // calibrate: placeholders
+const int CUP_POINTS = sizeof(CUP_PCT) / sizeof(CUP_PCT[0]);
+const int CUP_SAMPLES = 32;           // averaged per reading: one ADC sample jumps by ~100
 const unsigned long HEARTBEAT_MS = 1000;
 const unsigned long FAST_MS      = 250;   // while a pump runs, Node 1 needs a fresh cup level
 const unsigned long LOST_MS      = 3000;  // 3 missed heartbeats, direct or relayed
@@ -184,6 +192,19 @@ void setup() {
   logEvent("boot");
 }
 
+// Average many samples, then interpolate between the calibration points.
+void readCup() {
+  long sum = 0;
+  for (int i = 0; i < CUP_SAMPLES; i++) sum += analogRead(CUP_PIN);
+  cupRaw = sum / CUP_SAMPLES;
+  if (cupRaw <= CUP_RAW[0])              cupPct = CUP_PCT[0];
+  else if (cupRaw >= CUP_RAW[CUP_POINTS - 1]) cupPct = CUP_PCT[CUP_POINTS - 1];
+  else for (int i = 1; i < CUP_POINTS; i++)
+    if (cupRaw < CUP_RAW[i]) { cupPct = map(cupRaw, CUP_RAW[i - 1], CUP_RAW[i], CUP_PCT[i - 1], CUP_PCT[i]); break; }
+  static unsigned long lastPrint = 0;
+  if (millis() - lastPrint >= 1000) { lastPrint = millis(); Serial.printf("cup raw=%d pct=%d\n", cupRaw, cupPct); }
+}
+
 void loop() {
   static unsigned long lastSend = 0, lastDraw = 0;
   meshLoop();
@@ -194,8 +215,7 @@ void loop() {
   bool pouring = node1.alive && n1Pump != 0;
   if (now - lastSend >= (pouring ? FAST_MS : HEARTBEAT_MS)) {
     lastSend = now;
-    cupRaw = analogRead(CUP_PIN);
-    cupPct = constrain(map(cupRaw, CUP_RAW_DRY, CUP_RAW_FULL, 0, 100), 0, 100);
+    readCup();
     sendStatus();
   }
   updateLed();
