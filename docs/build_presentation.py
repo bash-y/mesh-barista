@@ -29,16 +29,17 @@ PAPER, CARD, INK, MUTED, LINE = "#f4ece0", "#fffaf2", "#24180f", "#6b5847", "#dc
 COPPER, TEAL, CODE_BG = "#8f4e0c", "#0f6b61", "#f4ece0"
 
 
-def wifi_qr_svg():
-    """Wi-Fi join QR as inline SVG: dark modules on a light tile, sized by CSS."""
+def qr_svg(data, label):
+    """QR code as inline SVG: dark modules on a light tile, sized by CSS."""
     qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=3,
                        image_factory=qrcode.image.svg.SvgPathImage)
-    qr.add_data(WIFI_QR)
+    qr.add_data(data)
     qr.make(fit=True)
     svg = qr.make_image().to_string(encoding="unicode")
     svg = re.sub(r"<\?xml[^>]*\?>", "", svg)
     svg = re.sub(r'\s(width|height)="[^"]*"', "", svg, count=2)  # let CSS size it
-    svg = svg.replace("<svg", f'<svg class="qr" role="img" aria-label="QR code: join the Wi-Fi {WIFI_SSID}"', 1)
+    svg = re.sub(r'\sid="[^"]*"', "", svg)  # two QR codes on one page: no duplicate ids
+    svg = svg.replace("<svg", f'<svg class="qr" role="img" aria-label="QR code: {label}"', 1)
     return svg.replace('fill="#000000"', f'fill="{DARK}"')
 
 
@@ -47,8 +48,6 @@ def card(label, title, items, cls=""):
     return f'<div class="card {cls}"><div class="label">{label}</div><h3>{title}</h3><ul>{lis}</ul></div>'
 
 
-ARROWS = '''<div class="link"><svg viewBox="0 0 84 70" width="84" height="70"><path d="M0 12H66" stroke="{c}" stroke-width="5"/><path d="M84 12L64 2V22z" fill="{c}"/>
-<path d="M84 58H18" stroke="{c}" stroke-width="5"/><path d="M0 58L20 48V68z" fill="{c}"/></svg><span>ESP-NOW</span></div>'''.format(c=MINT)
 
 SLIDES = []
 
@@ -75,18 +74,60 @@ SLIDES.append(("light", '''
 </div>
 <p class="model">Our model of it: three reservoirs are the source tanks, the cup is the destination tank, and dyed water stands in for the drinks.</p>'''))
 
-# 3 · Architecture
+# 3 · Architecture: system design diagram (inline SVG, units = pt)
+WATER = "#8fb8e8"
+NODE_W, GAP, NODE_Y, NODE_H = 330, 129, 104, 290
+NODES = [
+    ("Node 1 · Source", "Pump station", ["3 reservoir level sensors", "3 relays → 3 pumps", "Buzzer: gurgle while pouring", "Order queue (up to 7)", "Fail-safe + watchdog: pumps off"]),
+    ("Node 2 · Gateway", "Control center", ["Joystick + OLED menu", "Buzzer alarm, jazz while pouring", "USB serial dashboard", "Relays Node 1 ↔ Node 3"]),
+    ("Node 3 · Distribution", "Output", ["Cup level sensor", "Status OLED", "RGB LED: pump · ready · error"]),
+]
+
+
+def node_svg(i, label, title, items):
+    x = i * (NODE_W + GAP)
+    out = [f'<rect x="{x}" y="{NODE_Y}" width="{NODE_W}" height="{NODE_H}" rx="12" class="sd-node"/>',
+           f'<text x="{x + 22}" y="{NODE_Y + 34}" class="sd-label">{label.upper()}</text>',
+           f'<text x="{x + 22}" y="{NODE_Y + 68}" class="sd-title">{title}</text>']
+    for j, item in enumerate(items):
+        cy = NODE_Y + 88 + j * 39
+        out.append(f'<rect x="{x + 18}" y="{cy}" width="{NODE_W - 36}" height="32" rx="6" class="sd-chip"/>'
+                   f'<text x="{x + 32}" y="{cy + 22}" class="sd-item">{item}</text>')
+    return "".join(out)
+
+
+def link_svg(i):
+    x0 = (i + 1) * NODE_W + i * GAP + 14
+    x1 = x0 + GAP - 28
+    y = NODE_Y + 120
+    return (f'<path d="M{x0} {y}H{x1 - 14}" class="sd-mesh"/><path d="M{x1} {y}l-16 -9v18z" fill="{MINT}"/>'
+            f'<path d="M{x1} {y + 26}H{x0 + 14}" class="sd-mesh"/><path d="M{x0} {y + 26}l16 -9v18z" fill="{MINT}"/>'
+            f'<text x="{(x0 + x1) / 2}" y="{y + 60}" class="sd-mesh-t" text-anchor="middle">ESP-NOW</text>'
+            f'<text x="{(x0 + x1) / 2}" y="{y + 84}" class="sd-mesh-s" text-anchor="middle">no router</text>')
+
+
+c1, c3 = NODE_W / 2, 2 * (NODE_W + GAP) + NODE_W / 2
+bottom = NODE_Y + NODE_H
+centers = [i * (NODE_W + GAP) + NODE_W / 2 for i in range(3)]
+DIAGRAM = f'''<svg class="sd" viewBox="0 0 1248 540" role="img" aria-label="System design: phones reach the dashboard on every node over Wi-Fi; three ESP32 nodes linked by ESP-NOW; water flows from the reservoirs through the pumps to the cup, and the cup level goes back to Node 1 to stop the pump.">
+<rect x="0" y="0" width="1248" height="54" rx="10" class="sd-wifi"/>
+<text x="624" y="34" class="sd-wifi-t" text-anchor="middle">Phones on Wi-Fi “{WIFI_SSID}” → {DASHBOARD_URL} · every node is an access point serving the same dashboard</text>
+{"".join(f'<path d="M{cx} 54V{NODE_Y}" class="sd-wifi-l"/>' for cx in centers)}
+{"".join(node_svg(i, *n) for i, n in enumerate(NODES))}
+{link_svg(0)}{link_svg(1)}
+<path d="M{c3} {bottom}V{bottom + 46}H{c1}V{bottom + 14}" class="sd-ctl"/><path d="M{c1} {bottom + 2}l-9 16h18z" fill="{AMBER}"/>
+<text x="624" y="{bottom + 36}" class="sd-ctl-t" text-anchor="middle">cup at 90 % → Node 1 stops the pump (relayed if out of range)</text>
+<rect x="0" y="{bottom + 76}" width="{NODE_W}" height="58" rx="10" class="sd-tank"/>
+<text x="{c1}" y="{bottom + 112}" class="sd-tank-t" text-anchor="middle">Reservoirs: coffee · milk · cream</text>
+<rect x="{c3 - NODE_W / 2}" y="{bottom + 76}" width="{NODE_W}" height="58" rx="10" class="sd-tank"/>
+<text x="{c3}" y="{bottom + 112}" class="sd-tank-t" text-anchor="middle">Cup (destination tank)</text>
+<path d="M{NODE_W + 14} {bottom + 105}H{c3 - NODE_W / 2 - 26}" class="sd-water"/><path d="M{c3 - NODE_W / 2 - 6} {bottom + 105}l-22 -12v24z" fill="{WATER}"/>
+<text x="624" y="{bottom + 95}" class="sd-water-t" text-anchor="middle">pump → tubing (dyed water)</text>
+</svg>'''
+
 SLIDES.append(("dark", f'''
 <h2>System architecture</h2>
-<div class="arch">
-{card("Node 1 · Source / Pump", "Pump station", ["3 reservoir level sensors", "3 relays driving 3 pumps", "Buzzer: coffee machine gurgle while pouring", "Own fail-safe: pumps off", "Watchdog: a frozen program resets with pumps off"])}
-{ARROWS}
-{card("Node 2 · Gateway", "Control center", ["Joystick menu and OLED", "Buzzer alarm", "Jazz melody while pouring", "USB serial dashboard", "Relays Node 1 and Node 3"])}
-{ARROWS}
-{card("Node 3 · Distribution", "Output", ["Cup level sensor", "Status OLED", "RGB LED: pump, ready, error", "Its reading stops the pump"])}
-</div>
-<div class="opview"><div class="label">Operator view</div><p>Every node is a Wi-Fi access point that hosts the same web dashboard, so it survives the loss of any one node.</p></div>
-<p class="note">No router, cloud service or API is needed: each node that owns an actuator decides locally.</p>'''))
+{DIAGRAM}'''))
 
 # 4 · Technical implementation
 JSON = '''{"node":1,"seq":145,
@@ -133,15 +174,12 @@ SLIDES.append(("light", f'''
   <div>
     <div class="demo">
       <div class="label">Live demo — order a drink</div>
-      <div class="demo-body">
-        <div class="qr-tile">{wifi_qr_svg()}</div>
-        <ol>
-          <li>Join the Wi-Fi <b>{WIFI_SSID}</b> (no password)</li>
-          <li>Turn mobile data off</li>
-          <li>Open <b>{DASHBOARD_URL}</b></li>
-          <li>Order</li>
-        </ol>
-      </div>
+      <ol class="demo-body">
+        <li><div class="qr-tile">{qr_svg(WIFI_QR, f"join the Wi-Fi {WIFI_SSID}")}</div>
+          <p>Scan to join <b>{WIFI_SSID}</b>, then turn mobile data off</p></li>
+        <li><div class="qr-tile">{qr_svg(DASHBOARD_URL, f"open {DASHBOARD_URL}")}</div>
+          <p>Scan to open <b>{DASHBOARD_URL.removeprefix("http://")}</b> and order</p></li>
+      </ol>
     </div>
     <p class="caption">Order from your phone, watch it pour, stop on a full cup, then pull a node and watch SAFE.</p>
   </div>
@@ -217,16 +255,25 @@ ul, ol {{ margin: 0; padding: 0; list-style: none; }}
 .model {{ color: {TEAL}; font-weight: 600; font-size: 21pt; line-height: 1.33; margin: 30pt 0 0; }}
 
 /* 3 */
-.arch {{ display: grid; grid-template-columns: 1fr 112pt 1fr 112pt 1fr; align-items: stretch; }}
-.arch .card {{ padding: 26pt 27pt 18pt; }}
-.arch .card li {{ font-size: 19.5pt; line-height: 1.3; margin-bottom: 9pt; }}
-.link {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 95pt; }}
-.link svg {{ width: 84pt; height: 70pt; }}
-.link span {{ position: absolute; margin-top: 23pt; font-family: 'JetBrains Mono', monospace; font-size: 16.3pt; letter-spacing: 1pt; color: {MINT}; }}
-.opview {{ margin-top: 22pt; border: 1pt solid {MINT}; background: {DARK_CARD}; border-radius: 12pt; padding: 22pt 27pt; display: grid; grid-template-columns: 243pt 1fr; align-items: center; }}
-.opview .label {{ color: {MINT}; }}
-.opview p {{ margin: 0; font-size: 21pt; line-height: 1.4; color: {CREAM}; }}
-.note {{ font-size: 19.5pt; color: {CREAM_MUTED}; margin: 22pt 0 0; }}
+.sd {{ display: block; width: 1248pt; height: 540pt; margin-top: -8pt; }}
+.sd text {{ font-family: 'Inter', sans-serif; }}
+.sd-node {{ fill: {DARK_CARD}; stroke: {DARK_LINE}; stroke-width: 1; }}
+.sd-chip {{ fill: {DARK}; stroke: {DARK_LINE}; stroke-width: 1; }}
+.sd .sd-label {{ font-family: 'JetBrains Mono', monospace; font-size: 14px; letter-spacing: 2.4px; fill: {AMBER}; }}
+.sd .sd-title {{ font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 25px; fill: {CREAM}; }}
+.sd-item {{ font-size: 17px; fill: {CREAM_MUTED}; }}
+.sd-wifi {{ fill: {DARK_CARD}; stroke: {CREAM_MUTED}; stroke-width: 1; stroke-dasharray: 5 5; }}
+.sd-wifi-t {{ font-size: 18px; fill: {CREAM}; }}
+.sd-wifi-l {{ stroke: {CREAM_MUTED}; stroke-width: 2; stroke-dasharray: 5 5; }}
+.sd-mesh {{ stroke: {MINT}; stroke-width: 5; }}
+.sd .sd-mesh-t {{ font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 1px; fill: {MINT}; }}
+.sd-mesh-s {{ font-size: 15px; fill: {CREAM_MUTED}; }}
+.sd-ctl {{ fill: none; stroke: {AMBER}; stroke-width: 3; stroke-dasharray: 9 6; }}
+.sd-ctl-t {{ font-size: 17px; fill: {AMBER}; }}
+.sd-tank {{ fill: {DARK_CARD}; stroke: #8fb8e8; stroke-width: 1.5; }}
+.sd-tank-t {{ font-size: 18px; fill: {CREAM}; }}
+.sd-water {{ stroke: #8fb8e8; stroke-width: 7; }}
+.sd-water-t {{ font-size: 17px; fill: #8fb8e8; }}
 
 /* 4 */
 .cols3 {{ display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 21pt; height: 499pt; }}
@@ -249,13 +296,13 @@ td:nth-child(2) {{ color: {MINT}; width: 300pt; }}
 .s6 {{ display: grid; grid-template-columns: 570pt 1fr; gap: 50pt; }}
 .demo {{ background: {DARK}; border-radius: 14pt; padding: 22pt 26pt 26pt; color: {CREAM}; }}
 .demo .label {{ color: {AMBER}; margin-bottom: 16pt; }}
-.demo-body {{ display: flex; gap: 26pt; align-items: center; }}
-.qr-tile {{ flex: none; background: #ffffff; border-radius: 8pt; padding: 0; width: 250pt; height: 250pt; }}
-.qr {{ width: 250pt; height: 250pt; display: block; }}
-.demo ol {{ counter-reset: n; }}
-.demo li {{ counter-increment: n; position: relative; padding-left: 34pt; font-size: 19pt; line-height: 1.35; margin: 0 0 14pt; color: {CREAM_MUTED}; }}
-.demo li b {{ color: {CREAM}; font-weight: 600; }}
-.demo li::before {{ content: counter(n); position: absolute; left: 0; top: 1pt; width: 23pt; height: 23pt; border-radius: 50%; background: {AMBER}; color: {DARK}; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13pt; line-height: 23pt; text-align: center; }}
+.demo-body {{ display: grid; grid-template-columns: 1fr 1fr; gap: 26pt; counter-reset: n; }}
+.demo-body li {{ counter-increment: n; }}
+.qr-tile {{ background: #ffffff; border-radius: 8pt; aspect-ratio: 1; }}
+.qr {{ width: 100%; height: 100%; display: block; }}
+.demo-body p {{ position: relative; padding-left: 34pt; margin: 14pt 0 0; font-size: 18pt; line-height: 1.35; color: {CREAM_MUTED}; }}
+.demo-body b {{ color: {CREAM}; font-weight: 600; }}
+.demo-body p::before {{ content: counter(n); position: absolute; left: 0; top: 1pt; width: 23pt; height: 23pt; border-radius: 50%; background: {AMBER}; color: {DARK}; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13pt; line-height: 23pt; text-align: center; }}
 .caption {{ font-size: 19.5pt; line-height: 1.38; color: {MUTED}; margin: 14pt 0 0; }}
 .stats {{ display: grid; grid-template-columns: auto 1fr; column-gap: 28pt; align-content: space-between; height: 468pt; padding-top: 14pt; }}
 .stat {{ display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }}

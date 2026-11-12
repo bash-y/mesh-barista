@@ -31,7 +31,9 @@ Every node is a Wi-Fi access point with the same name and serves the same page.
 Join the Wi-Fi (`MESH_SSID` / `MESH_PASSWORD`) and open **http://barista.io**. The name only works
 while you are on that Wi-Fi: each node answers every DNS lookup with its own address, 192.168.4.1.
 Type the `http://` part, and turn mobile data off on a phone so the lookup goes to the node.
-It keeps working when any one node is off. Node 2 also prints a text dashboard on USB serial (115200).
+Joining from the phone's Wi-Fi settings usually pops the page open by itself (the node redirects the
+phone's internet check to the dashboard), but joining by scanning a Wi-Fi QR code does not, so slide 6
+has a second QR code that opens http://barista.io. It keeps working when any one node is off. Node 2 also prints a text dashboard on USB serial (115200).
 
 **Orders.** The dashboard opens on an Order tab: anyone on the Wi-Fi enters a name and picks a drink
 (black coffee, latte, coffee & cream, glass of milk). Node 1 keeps the queue (up to 7) and pours a
