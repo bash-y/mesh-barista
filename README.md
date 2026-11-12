@@ -44,7 +44,8 @@ The script also copies `barista_mesh.h` and `barista_web.h` into each sketch fol
 
 ## Wiring
 
-Step-by-step wiring, power-up checks and troubleshooting are in [WIRING.md](WIRING.md). In short:
+Step-by-step wiring with connection diagrams, a power-up checklist and troubleshooting are in
+[Mesh-Barista-Wiring-Guide.pdf](Mesh-Barista-Wiring-Guide.pdf) (text version: [WIRING.md](WIRING.md)). In short:
 
 **Node 1:** relays IN on GPIO 25 / 26 / 27 (coffee / milk / cream), water sensors on GPIO 32 / 33 / 34,
 buzzer on GPIO 13. Pumps run from their own supply through each relay's COM and NO, with the supply
