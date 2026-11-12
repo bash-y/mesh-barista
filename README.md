@@ -40,7 +40,9 @@ It keeps working when any one node is off. Node 2 also prints a text dashboard o
 To change the page, edit `dashboard_src/dashboard.html` and run `python3 dashboard_src/build_assets.py`.
 The script also copies `barista_mesh.h` and `barista_web.h` into each sketch folder.
 
-## Pinout
+## Wiring
+
+Step-by-step wiring, power-up checks and troubleshooting are in [WIRING.md](WIRING.md). In short:
 
 **Node 1:** relays IN on GPIO 25 / 26 / 27 (coffee / milk / cream), water sensors on GPIO 32 / 33 / 34,
 buzzer on GPIO 13. Pumps run from their own supply through each relay's COM and NO, with the supply
