@@ -102,12 +102,12 @@ DOC = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Mesh
 @page {{ size: Letter; margin: 0; }}
 * {{ box-sizing: border-box; }}
 body {{ margin: 0; font-family: Helvetica, Arial, sans-serif; color: {INK}; font-size: 10.6pt; line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-.page {{ width: 8.5in; min-height: 11in; padding: 0.62in 0.7in 0.66in; page-break-after: always; position: relative; background: #fffdf9; }}
-.cover {{ background: {ESP}; color: {CREAM}; display: flex; flex-direction: column; justify-content: space-between; padding: 0.9in 0.8in; height: 11in; }}
-.cover h1 {{ font-size: 54pt; line-height: 1.02; margin: 0 0 14pt; color: {CREAM}; }} .cover h1 span {{ color: #d9903d; }}
-.cover .sub {{ font-size: 16pt; color: #c9b8a3; max-width: 5.6in; line-height: 1.35; }}
-.cover .eyebrow {{ color: #d9903d; }} .cover .meta {{ font-size: 11pt; color: #c9b8a3; line-height: 1.7; }} .cover .meta b {{ color: {CREAM}; }}
-.toc {{ display: grid; grid-template-columns: 1fr 1fr; gap: 6pt 30pt; font-size: 11.5pt; border-top: 1px solid #4a382b; padding-top: 16pt; }} .toc span {{ color: #5cc8ba; font-family: monospace; margin-right: 8pt; }}
+.page {{ width: 8.5in; min-height: 11in; padding: 0.62in 0.7in 0.66in; page-break-after: always; position: relative; background: #ffffff; }}
+.cover {{ background: #ffffff; color: {INK}; border-top: 14pt solid {COPPER}; display: flex; flex-direction: column; justify-content: space-between; padding: 0.9in 0.8in; height: 11in; }}
+.cover h1 {{ font-size: 54pt; line-height: 1.02; margin: 0 0 14pt; color: {INK}; }} .cover h1 span {{ color: {COPPER}; }}
+.cover .sub {{ font-size: 16pt; color: {MUTED}; max-width: 5.6in; line-height: 1.35; }}
+.cover .meta {{ font-size: 11pt; color: {MUTED}; line-height: 1.7; }} .cover .meta b {{ color: {INK}; }}
+.toc {{ display: grid; grid-template-columns: 1fr 1fr; gap: 6pt 30pt; font-size: 11.5pt; border-top: 1px solid {LINE}; padding-top: 16pt; }} .toc span {{ color: {TEAL}; font-weight: 700; font-family: monospace; margin-right: 8pt; }}
 .eyebrow {{ font-family: monospace; font-size: 9pt; letter-spacing: 2.5px; text-transform: uppercase; color: {COPPER}; margin: 0 0 6pt; font-weight: 700; }}
 h1 {{ font-size: 24pt; margin: 0 0 6pt; line-height: 1.1; }} h2 {{ font-size: 13pt; margin: 12pt 0 5pt; color: {TEAL}; }}
 .lead {{ font-size: 11.5pt; color: {MUTED}; margin: 0 0 12pt; max-width: 6.4in; }}
