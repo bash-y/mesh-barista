@@ -92,10 +92,10 @@ td:nth-child(2) { color: #5cc8ba; width: 300pt; }
 .demo li b { color: #f4ece0; font-weight: 600; }
 .demo li::before { content: counter(n); position: absolute; left: 0; top: 1pt; width: 23pt; height: 23pt; border-radius: 50%; background: #d9903d; color: #1c1410; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13pt; line-height: 23pt; text-align: center; }
 .caption { font-size: 19.5pt; line-height: 1.38; color: #6b5847; margin: 14pt 0 0; }
-.stats { display: flex; flex-direction: column; justify-content: space-between; height: 468pt; padding-top: 14pt; }
-.stat { display: grid; grid-template-columns: 245pt 1fr; align-items: center; }
+.stats { display: grid; grid-template-columns: auto 1fr; column-gap: 28pt; align-content: space-between; height: 468pt; padding-top: 14pt; }
+.stat { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }
 .num { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 66pt; line-height: 0.9; color: #8f4e0c; letter-spacing: -1pt; }
-.num { max-width: 215pt; }
+.num { white-space: nowrap; }
 .what { font-size: 21pt; line-height: 1.3; color: #24180f; }
 
 /* 7 */
@@ -176,7 +176,7 @@ td:nth-child(2) { color: #5cc8ba; width: 300pt; }
     </div>
     <p class="caption">Order from your phone, watch it pour, stop on a full cup, then pull a node and watch SAFE.</p>
   </div>
-  <div class="stats"><div class="stat"><div class="num">18 / 18</div><div class="what">control and fault scenarios passed in simulation, including each node lost in turn</div></div><div class="stat"><div class="num">3 s</div><div class="what">to flag a lost node and name its zone on the dashboard</div></div><div class="stat"><div class="num">[__] mL</div><div class="what">measured error on a 60 mL pour, hardware</div></div><div class="stat"><div class="num">[__] mL/s</div><div class="what">measured pump flow rate used for timed pours</div></div></div>
+  <div class="stats"><div class="stat"><div class="num">18 / 18</div><div class="what">control and fault scenarios passed in simulation, including each node lost in turn</div></div><div class="stat"><div class="num">3 s</div><div class="what">to flag a lost node and name its zone on the dashboard</div></div><div class="stat"><div class="num">~20 mL/s</div><div class="what">estimated pump flow rate (firmware default, not yet measured on hardware)</div></div><div class="stat"><div class="num">60 mL</div><div class="what">per pour, run as a 3 s timed pump burst at that estimate</div></div></div>
 </div><div class="foot">MESH BARISTA · ENGR 4399 PROJECT 2 · 6 / 7</div></section>
 <section class="slide dark">
 <h2>Lessons learned and improvements</h2>

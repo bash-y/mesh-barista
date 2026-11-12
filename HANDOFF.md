@@ -23,8 +23,9 @@ the **cream pump's electrical noise**, and **no hardware test of the order queue
    orderer's phone, Node 2/3 OLEDs show the name. Pump supply can stay off (relays still click).
 2. **Measure each pump's flow rate.** `FLOW_ML_PER_S` in `node1_pump_station.ino` is still the default
    `20.0` for all three, so every timed pour is a guess. Run each pump 10 s into a measuring cup, mL / 10.
-   Then measure the error on a 60 mL pour. Put both numbers on slide 6: set `FLOW_ML_S` and
-   `POUR_ERROR_ML` at the top of `docs/build_presentation.py` and rebuild (see "Building the docs").
+   Then measure the error on a 60 mL pour. Slide 6 currently shows the 20 mL/s default, labelled as an
+   estimate: set `FLOW_ML_S` at the top of `docs/build_presentation.py` to the measured rate, reword the
+   two hardware stats in `STATS` to say measured (adding the pour error), and rebuild (see "Building the docs").
 3. **Fix the cream pump's electrical noise.** Starting the cream pump froze Node 1 twice (once with the
    relay closed). The watchdog now resets Node 1 into SAFE with all pumps off, so it is safe, but it
    will interrupt a demo. Fix: flyback diode across the cream pump (1N4007, stripe to +), pump supply

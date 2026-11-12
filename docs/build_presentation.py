@@ -9,9 +9,10 @@ from pathlib import Path
 import qrcode
 import qrcode.image.svg
 
-# Hardware measurements still to be taken. Fill these in, then rebuild.
-POUR_ERROR_ML = "[__]"   # measured error on a 60 mL pour
-FLOW_ML_S = "[__]"       # measured pump flow rate used for timed pours
+# Pump flow rate: still the firmware default (FLOW_ML_PER_S on Node 1), not yet measured.
+# Once measured, put the real number here, drop the "~" and "estimated" wording on slide 6, and rebuild.
+FLOW_ML_S = 20
+POUR_ML = 60
 
 WIFI_SSID = "Bashy"
 WIFI_QR = f"WIFI:T:nopass;S:{WIFI_SSID};;"
@@ -123,8 +124,8 @@ SLIDES.append(("dark", f'''
 # 6 · Results and demonstration (live demo)
 STATS = [("18 / 18", "control and fault scenarios passed in simulation, including each node lost in turn"),
          ("3 s", "to flag a lost node and name its zone on the dashboard"),
-         (f"{POUR_ERROR_ML} mL", "measured error on a 60 mL pour, hardware"),
-         (f"{FLOW_ML_S} mL/s", "measured pump flow rate used for timed pours")]
+         (f"~{FLOW_ML_S} mL/s", "estimated pump flow rate (firmware default, not yet measured on hardware)"),
+         (f"{POUR_ML} mL", f"per pour, run as a {POUR_ML / FLOW_ML_S:g} s timed pump burst at that estimate")]
 stats = "".join(f'<div class="stat"><div class="num">{n}</div><div class="what">{w}</div></div>' for n, w in STATS)
 SLIDES.append(("light", f'''
 <h2>Results and demonstration</h2>
@@ -256,10 +257,10 @@ td:nth-child(2) {{ color: {MINT}; width: 300pt; }}
 .demo li b {{ color: {CREAM}; font-weight: 600; }}
 .demo li::before {{ content: counter(n); position: absolute; left: 0; top: 1pt; width: 23pt; height: 23pt; border-radius: 50%; background: {AMBER}; color: {DARK}; font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13pt; line-height: 23pt; text-align: center; }}
 .caption {{ font-size: 19.5pt; line-height: 1.38; color: {MUTED}; margin: 14pt 0 0; }}
-.stats {{ display: flex; flex-direction: column; justify-content: space-between; height: 468pt; padding-top: 14pt; }}
-.stat {{ display: grid; grid-template-columns: 245pt 1fr; align-items: center; }}
+.stats {{ display: grid; grid-template-columns: auto 1fr; column-gap: 28pt; align-content: space-between; height: 468pt; padding-top: 14pt; }}
+.stat {{ display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; }}
 .num {{ font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 66pt; line-height: 0.9; color: {COPPER}; letter-spacing: -1pt; }}
-.num {{ max-width: 215pt; }}
+.num {{ white-space: nowrap; }}
 .what {{ font-size: 21pt; line-height: 1.3; color: {INK}; }}
 
 /* 7 */
