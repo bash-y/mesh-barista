@@ -6,6 +6,8 @@ tanks, the cup is the destination tank.
 
 Team: Sebastian Cadena, Daniel Critchlow Jr
 
+Presentation: [docs/Mesh-Barista-Presentation.pdf](docs/Mesh-Barista-Presentation.pdf)
+
 ## Nodes
 
 | Node | Role | Hardware |
