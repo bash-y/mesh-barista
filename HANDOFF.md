@@ -32,11 +32,9 @@ the **cream pump's electrical noise**, and **no hardware test of the order queue
    Swap pumps to see if it follows the pump or the relay (GPIO 27). After a reset, Node 1's event log
    says why: "restarted by the watchdog" vs "restarted by a brownout".
 4. **Fill the reservoirs above ~1.8 cm.** Below 20 % (of the usable depth) the pumps stay locked.
-5. **Hide the Test and System tabs from the audience (recommended).** The network is open, and the
-   Test tab has pump, Trip SAFE and buzzer buttons anyone can press. Only the queue's Pour next / Remove
-   buttons are hidden behind `#op`. Simplest fix: in `dashboard_src/dashboard.html`, hide the Test and
-   System tab buttons unless `OP` is true, then run `python3 dashboard_src/build_assets.py` and reflash
-   all three nodes.
+5. ~~Hide the Test and System tabs from the audience~~ **Done.** Without `#op` the page shows only the
+   Order and Live tabs and no Acknowledge button (anyone can still press Stop pump). This only hides
+   the controls: `/cmd` still accepts any command, so it is not security.
 6. **Listen to the sounds once.** Written and flashed but never confirmed by ear: Node 2 boot chime,
    Node 2 jazz melody + Node 1 coffee-machine gurgle while pouring, "drink ready" phrase, and the
    2.7 kHz alarm (the old alarm was silent on passive buzzers). Tuning knobs are in

@@ -218,8 +218,8 @@ pre.log{margin:0;background:var(--surface2);border:1px solid var(--line);border-
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" aria-selected="false" data-page="order">Order</button>
     <button class="tab" role="tab" aria-selected="true" data-page="live">Live</button>
-    <button class="tab" role="tab" aria-selected="false" data-page="test">Test</button>
-    <button class="tab" role="tab" aria-selected="false" data-page="system">System</button>
+    <button class="tab optab" role="tab" aria-selected="false" data-page="test">Test</button>
+    <button class="tab optab" role="tab" aria-selected="false" data-page="system">System</button>
   </div>
 
   <div class="banner demo" id="demobar" hidden>
@@ -404,7 +404,10 @@ const POLL=1000, LOST_MS=5000, TIMEOUT=1500;
 const ZONES={1:"pump station",2:"control",3:"output"}, ING=["coffee","milk","cream"];
 // The menu: the same drinks, in the same order, as DRINK_NAME / DRINK_ML in barista_web.h.
 const DRINKS=[{n:"Black coffee",ml:[60,0,0]},{n:"Latte",ml:[30,45,0]},{n:"Coffee & cream",ml:[50,0,15]},{n:"Glass of milk",ml:[0,60,0]}];
-const OP=location.hash==="#op";  // operator view: pour next and remove buttons
+// Operator view (http://barista.io/#op): the Test and System tabs, Acknowledge, and the queue's Pour next
+// and Remove buttons. The Wi-Fi is open to the audience, so everyone else sees only Order and Live.
+// This hides the controls; it is not security (the node still accepts the commands).
+const OP=location.hash==="#op";
 let data=null, demo=false, firstTry=true, misses=0, busy=false;
 let epoch=0, epochNode=0, lastT=-1, firstMe=0;   // epoch: this browser's clock time at the serving node's boot
 // Addresses to read from. "" is the node that served this page; the others are learned from the
@@ -442,12 +445,13 @@ async function request(url,opt){
 
 /* ---------- tabs ---------- */
 function showTab(name){
-  if(!$("#page-"+name))name="live";
+  if(!$("#page-"+name)||(!OP&&(name==="test"||name==="system")))name=OP?"live":"order";
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.page===name)));
   document.querySelectorAll(".page").forEach(p=>{p.hidden=p.id!=="page-"+name;});
   store.set("meshbarista.tab",name);
 }
 document.querySelectorAll(".tab").forEach(t=>{t.onclick=()=>showTab(t.dataset.page);});
+if(!OP)document.querySelectorAll(".optab").forEach(t=>{t.hidden=true;});
 
 /* ---------- polling, with fail-over to the other nodes ---------- */
 async function poll(){
@@ -538,7 +542,8 @@ function render(){
   $("#cupnow").textContent=s3.cup==null?"—":s3.cup+"%";
   $("#menunow").textContent=s2.sel==null?"—":ING[s2.sel]+", "+s2.ml+" mL";
   const safe=N[1].alive&&s1.state==="SAFE";
-  $("#ackbtn").hidden=!safe;$("#stopbtn").hidden=!pump;$("#livebtns").hidden=!safe&&!pump;
+  // Anyone may stop a pump; only the operator view may acknowledge SAFE.
+  $("#ackbtn").hidden=!safe||!OP;$("#stopbtn").hidden=!pump;$("#livebtns").hidden=(!safe||!OP)&&!pump;
 
   /* order queue */
   renderQueue(d,N,safe);

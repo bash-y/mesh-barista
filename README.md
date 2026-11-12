@@ -36,8 +36,8 @@ It keeps working when any one node is off. Node 2 also prints a text dashboard o
 **Orders.** The dashboard opens on an Order tab: anyone on the Wi-Fi enters a name and picks a drink
 (black coffee, latte, coffee & cream, glass of milk). Node 1 keeps the queue (up to 7) and pours a
 drink's ingredients one after another. The operator starts each order: a joystick click pours the next
-one (Node 2's OLED shows who is next), or open **http://barista.io/#op** for Pour next and Remove
-buttons. The page tells each person when their drink is ready. Leave `MESH_PASSWORD` empty (`""`) for
+one (Node 2's OLED shows who is next), or open **http://barista.io/#op**: the operator view, with
+Pour next and Remove, Acknowledge, and the Test and System tabs. Everyone else sees only Order and Live. The page tells each person when their drink is ready. Leave `MESH_PASSWORD` empty (`""`) for
 an open network anyone in the room can join.
 
 ## Build
