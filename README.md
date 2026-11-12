@@ -48,6 +48,14 @@ an open network anyone in the room can join.
 4. Calibrate on the dashboard's Test tab: sensor raw values dry and full go into `LEVEL_RAW_*`
    (Node 1) and `CUP_RAW_*` (Node 3); each pump's measured mL per second goes into `FLOW_ML_PER_S`.
 
+**Calibration status (TODO):** the water sensor values in `LEVEL_RAW` (Node 1) and `CUP_RAW` (Node 3)
+are mostly **estimates**. Only the reservoirs at the pump's empty point (~1 cm) and the cup dry and at
+4.25 cm were measured; the rest follow the usual curve of these strip sensors. The sensors also drift
+by 50-100 counts over minutes. Until every point is measured with a ruler, treat the dry-run lock and
+the 90 % cup stop as rough backstops: the timed pour is what limits each drink. `FLOW_ML_PER_S` is
+also still the default 20 mL/s for every pump. Node 1 prints `levels raw=` and Node 3 `cup raw=` on
+serial once a second for calibrating.
+
 To change the page, edit `dashboard_src/dashboard.html` and run `python3 dashboard_src/build_assets.py`.
 The script also copies `barista_mesh.h` and `barista_web.h` into each sketch folder.
 

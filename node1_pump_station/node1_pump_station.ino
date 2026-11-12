@@ -38,15 +38,24 @@ const PourSound POUR_SOUND = POUR_GURGLE;  // while a pump runs: a coffee machin
 
 // ---------- tuning (justify these in the report) ----------
 const float FLOW_ML_PER_S[3]  = {20.0, 20.0, 20.0};  // calibrate: run each pump 10 s into a measuring cup, mL / 10
-// Reservoir levels. Each sensor stands on the bottom of its reservoir, so its 5.07 cm strips see the last
-// 5 cm before the pump runs dry: 100 % = 5 cm of liquid or more, 0 % = empty. The strips are not linear,
-// so fill each reservoir to the heights below (from the inside bottom) and put the raw values from the
-// dashboard's Test tab into LEVEL_RAW, one row per reservoir. Each row must increase.
-//                                dry  1.3cm 2.5cm 3.8cm 5.1cm
-const int   LEVEL_PCT[5]       = {0,   25,   50,   75,  100};
-const int   LEVEL_RAW[3][5]    = {{0, 900, 1300, 1600, 1800},   // coffee  (calibrate: placeholders)
-                                  {0, 900, 1300, 1600, 1800},   // milk
-                                  {0, 900, 1300, 1600, 1800}};  // cream
+// Reservoir levels. Each sensor stands on the bottom of its reservoir and its strips reach 5.1 cm up.
+// A pump can't pull liquid below about 1.0 cm, so that is 0 % (the pump's "empty"), and the top of the
+// strips is 100 %: the % is of the depth a pump can actually use. The dry-run lock at 10 % (about 1.4 cm)
+// then trips before the pump sucks air. The strips are not linear, so fill each reservoir to the heights
+// below (from the inside bottom) and put the raw values ("levels raw=" on serial, or the dashboard's Test
+// tab) into LEVEL_RAW, one row per reservoir. Each row must increase.
+//
+// TODO(calibration): THESE ARE ESTIMATES, NOT MEASUREMENTS. Only the first column was read, with each
+// reservoir roughly 1/5 of the strip deep (about 1.0 cm); the rest come from the usual curve of these
+// strip sensors scaled to that reading. The sensors also drift by 50-100 counts over minutes, which is
+// about as big as the whole range here, so the dry-run lock is not trustworthy until each reservoir is
+// measured at 2.5, 3.8 and 5.1 cm with a ruler. Where two readings differed, the higher one was used,
+// so drift makes a pump lock early rather than run dry.
+//                          pump empty (~1.0cm)  2.5cm 3.8cm 5.1cm
+const int   LEVEL_PCT[4]       = {   0,             37,   69,  100};
+const int   LEVEL_RAW[3][4]    = {{1071,          1185, 1246, 1287},   // coffee  (first column measured,
+                                  {1266,          1400, 1472, 1522},   // milk     the rest estimated)
+                                  { 937,          1036, 1090, 1126}};  // cream
 const int   LEVEL_SAMPLES     = 16;    // averaged per reading: one ADC sample jumps by ~100
 const int   LEVEL_LOCK_PCT    = 10;    // below: that pump is locked (dry-run protection)
 const int   LEVEL_UNLOCK_PCT  = 20;    // must refill above this to unlock (hysteresis, no relay chatter)
@@ -207,7 +216,7 @@ void readLevels() {
     long sum = 0;
     for (int k = 0; k < LEVEL_SAMPLES; k++) sum += analogRead(LEVEL_PIN[i]);
     levelRaw[i] = sum / LEVEL_SAMPLES;
-    levelPct[i] = rawToPct(levelRaw[i], LEVEL_RAW[i], LEVEL_PCT, 5);
+    levelPct[i] = rawToPct(levelRaw[i], LEVEL_RAW[i], LEVEL_PCT, 4);
     if (!locked[i] && levelPct[i] < LEVEL_LOCK_PCT) {
       locked[i] = true;
       logEvent(String(ING[i]) + " reservoir low (" + levelPct[i] + "%) - pump locked");
@@ -216,6 +225,11 @@ void readLevels() {
       locked[i] = false;
       logEvent(String(ING[i]) + " reservoir refilled (" + levelPct[i] + "%) - unlocked");
     }
+  }
+  static unsigned long lastPrint = 0;  // raw values on serial once a second, for calibration
+  if (millis() - lastPrint >= 1000) {
+    lastPrint = millis();
+    Serial.printf("levels raw=%d,%d,%d pct=%d,%d,%d\n", levelRaw[0], levelRaw[1], levelRaw[2], levelPct[0], levelPct[1], levelPct[2]);
   }
   updateState();
 }

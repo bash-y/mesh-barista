@@ -34,9 +34,15 @@ const int RGB_PIN[3] = {25, 26, 27};  // R, G, B of a common-anode LED (V pin on
 // leaves 3 cm to carry it, and Node 1 stops pouring at 90 % (about 7.6 cm). Below 3.4 cm the strips are
 // dry and the cup reads 0 %. They are not linear, so: fill the cup to each height below and put the raw
 // value from the dashboard's Test tab (or "cup raw=" on serial) into CUP_RAW. The values must increase.
-//                    dry  3.4cm 4.6cm 5.9cm 7.2cm 8.4cm
-const int CUP_PCT[] = {0,   40,   55,   70,   85,  100};
-const int CUP_RAW[] = {0,  700, 1100, 1400, 1650, 1800};   // calibrate: placeholders
+//
+// TODO(calibration): THESE ARE ESTIMATES, NOT MEASUREMENTS. Measured: dry (138) and 1/6 of the strip
+// under water, 4.25 cm (1054). The other points come from the usual curve of these strip sensors scaled
+// to that reading. Near the top the curve is flat (85 % and 100 % are only ~40 counts apart) and the
+// sensor drifts by 50-100 counts over minutes, so the 90 % stop is a rough backstop until the cup is
+// measured at 3.4, 4.6, 5.9, 7.2 and 8.4 cm. The timed pour is what limits a drink meanwhile.
+//                    dry  3.4cm 4.25cm 5.9cm 7.2cm 8.4cm
+const int CUP_PCT[] = {0,    40,   50,    70,   85,  100};
+const int CUP_RAW[] = {138, 941, 1054,  1194, 1252, 1293};   // dry and 4.25 cm measured, the rest estimated
 const int CUP_POINTS = sizeof(CUP_PCT) / sizeof(CUP_PCT[0]);
 const int CUP_SAMPLES = 32;           // averaged per reading: one ADC sample jumps by ~100
 const unsigned long HEARTBEAT_MS = 1000;

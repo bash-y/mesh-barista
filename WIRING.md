@@ -131,8 +131,9 @@ Do these in order. Each one uses the dashboard: join the Wi-Fi the nodes create 
    when pushed. A value stuck near 0 or 4095 means that axis wire, 3V3 or GND is loose.
 6. **Water sensors.** The Inputs card shows each raw value. The strips are not linear, so each sensor is
    calibrated at several heights, measured from the inside bottom:
-   - **Reservoirs:** the sensors stand on the bottom and watch the last 5 cm. Note the raw value dry and
-     at 1.3, 2.5, 3.8 and 5.1 cm, and put each reservoir's row in `LEVEL_RAW` (Node 1).
+   - **Reservoirs:** the sensors stand on the bottom and reach 5.1 cm up. A pump can't pull liquid below
+     about 1 cm, so that level is 0 %. Note the raw value there (run the pump until it stops pulling) and
+     at 2.5, 3.8 and 5.1 cm, and put each reservoir's row in `LEVEL_RAW` (Node 1).
    - **Cup:** the top of the strips sits 3 cm below the lip and is the "full" line; Node 1 stops at 90 %.
      Note the raw value dry and at 3.4, 4.6, 5.9, 7.2 and 8.4 cm, and put them in `CUP_RAW` (Node 3).
    Then flash both nodes again.
