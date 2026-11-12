@@ -24,7 +24,9 @@ Team: Sebastian Cadena, Daniel Critchlow Jr
 ## Dashboard
 
 Every node is a Wi-Fi access point with the same name and serves the same page.
-Join the Wi-Fi (`MESH_SSID` / `MESH_PASSWORD`) and open **http://192.168.4.1**.
+Join the Wi-Fi (`MESH_SSID` / `MESH_PASSWORD`) and open **http://barista.io**. The name only works
+while you are on that Wi-Fi: each node answers every DNS lookup with its own address, 192.168.4.1.
+Type the `http://` part, and turn mobile data off on a phone so the lookup goes to the node.
 It keeps working when any one node is off. Node 2 also prints a text dashboard on USB serial (115200).
 
 ## Build

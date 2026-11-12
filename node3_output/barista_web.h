@@ -3,7 +3,8 @@
 //
 // Every node is a Wi-Fi access point with the same name and hosts the same page, so the dashboard
 // keeps working from Node 1 or Node 3 when Node 2 is off. To open it: join the Wi-Fi
-// (MESH_SSID / MESH_PASSWORD) and browse to http://192.168.4.1
+// (MESH_SSID / MESH_PASSWORD) and browse to http://barista.io (or http://192.168.4.1).
+// Each node also answers every DNS lookup with its own address, which is what makes the name work.
 //
 //   /      the page (dashboard_html.h, gzipped)
 //   /data  JSON: the latest status from every node, this node's links, and the event log
@@ -11,13 +12,17 @@
 //
 // Include it once, from the sketch, after barista_mesh.h.
 #include <WebServer.h>
+#include <DNSServer.h>
 #include "dashboard_html.h"
 
 // provided by each sketch
 void handleCmd(const char* cmd, int to, int ing, float ml);  // acts only on the commands meant for this node
 void addHeader(JsonDocument& doc);
 
+const char* WEB_HOST = "barista.io";  // the name to type; any other name lands on the dashboard too
+
 WebServer webServer(80);
+DNSServer webDns;
 
 String        webStatus[4];  // latest status JSON per node, index = node number (this node included)
 unsigned long webSeen[4];    // millis() when it arrived, 0 = never
@@ -118,9 +123,21 @@ void webBegin() {
   webServer.on("/", webPage);
   webServer.on("/data", webData);
   webServer.on("/cmd", webCmd);
+  // Anything else (a phone's "is there internet?" probe, a mistyped path) is sent to the dashboard.
+  webServer.onNotFound([]() {
+    webServer.sendHeader("Location", String("http://") + WEB_HOST + "/");
+    webServer.send(302, "text/plain", "");
+  });
   webServer.begin();
+  webDns.start(53, "*", WiFi.softAPIP());  // answer every name with this node's address
   Serial.print("Dashboard: join the Wi-Fi, then open http://");
-  Serial.println(WiFi.softAPIP().toString());
+  Serial.print(WEB_HOST);
+  Serial.print("  (or http://");
+  Serial.print(WiFi.softAPIP().toString());
+  Serial.println(")");
 }
 
-void webLoop() { webServer.handleClient(); }
+void webLoop() {
+  webDns.processNextRequest();
+  webServer.handleClient();
+}

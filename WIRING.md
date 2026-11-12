@@ -118,7 +118,7 @@ Parts: ESP32, 1 water sensor, OLED (4-pin I2C), RGB LED (4-pin, marked V G B R).
 ## Power-up checks
 
 Do these in order. Each one uses the dashboard: join the Wi-Fi the nodes create and open
-`http://192.168.4.1`.
+`http://barista.io` (or `http://192.168.4.1`).
 
 1. **Each node alone on USB.** The OLED lights up on Nodes 2 and 3. Node 1 prints its address on Serial.
 2. **All three on.** The Live tab shows three nodes ALIVE. The system starts in SAFE; press

@@ -232,7 +232,7 @@ void updateOled() {
   oled.setTextSize(1);
   oled.setCursor(0, 0);
   oled.print("Node 2  ");
-  oled.println(WiFi.softAPIP().toString());  // the dashboard address on this node
+  oled.println(WEB_HOST);  // the dashboard address
   oled.setTextSize(2);
   oled.print(">");
   oled.println(ING[sel]);
