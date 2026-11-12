@@ -1,0 +1,87 @@
+# Builds the wiki from wiki/pages/ (see wiki/README.md) and publishes it to the repo's GitHub wiki.
+# On a pull request it only checks that every page still builds (no broken includes).
+name: Wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "wiki/**"
+      - "*.md"
+      - "docs/**"
+      - "node1_pump_station/*.ino"
+      - "node2_control_center/*.ino"
+      - "node3_output/*.ino"
+      - "dashboard_src/**"
+      - ".github/workflows/wiki.yml"
+  pull_request:
+    paths:
+      - "wiki/**"
+      - "*.md"
+      - "docs/*.md"
+      - "node*/*.ino"
+      - "dashboard_src/*.h"
+  issues:
+    types: [opened, edited, closed, reopened, deleted, assigned, unassigned, labeled, unlabeled, milestoned, demilestoned]
+  milestone:
+    types: [created, edited, closed, opened, deleted]
+  schedule:
+    - cron: "0 12 * * *"   # every morning (6-7 am Central), so the sprint pages stay current
+  workflow_dispatch:
+
+permissions:
+  contents: write   # pushing to the wiki repository
+  issues: read      # sprint status and milestones
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check every page builds
+        run: python3 wiki/build_wiki.py --check
+
+  publish:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main   # issue events build the pages from main, not from a stale ref
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 wiki/build_wiki.py --out "$RUNNER_TEMP/wiki-build"
+      - name: Publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WIKI="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          if ! git clone --depth 1 "$WIKI" "$RUNNER_TEMP/wiki" 2>/dev/null; then
+            echo "::error::The wiki repository does not exist yet. Open https://github.com/${GITHUB_REPOSITORY}/wiki, click 'Create the first page', save it, then re-run this workflow."
+            exit 1
+          fi
+          cd "$RUNNER_TEMP/wiki"
+          # The wiki is fully generated: remove pages that no longer exist in wiki/pages/
+          find . -maxdepth 1 -name '*.md' -delete
+          cp "$RUNNER_TEMP"/wiki-build/*.md .
+          git add -A
+          if git diff --cached --quiet -- . ':!_Footer.md'; then
+            echo "No page changed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Update wiki from ${GITHUB_SHA::7} (${GITHUB_EVENT_NAME})"
+          git push
