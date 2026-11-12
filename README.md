@@ -8,6 +8,8 @@ Team: Sebastian Cadena, Daniel Critchlow Jr
 
 Presentation: [docs/Mesh-Barista-Presentation.pdf](docs/Mesh-Barista-Presentation.pdf)
 
+Open work, how to flash safely and known traps: [HANDOFF.md](HANDOFF.md)
+
 ## Nodes
 
 | Node | Role | Hardware |
