@@ -29,7 +29,9 @@ const int JOY_X_PIN  = 32;   // ADC1 only: ADC2 reads garbage while the mesh rad
 const int JOY_Y_PIN  = 35;
 const int JOY_SW_PIN = 27;   // LOW when pressed
 const int BUZZER_PIN = 25;
-const int BUZZER_ON  = LOW;  // most 3-pin kit buzzers are low-trigger; use HIGH if yours beeps on HIGH
+const int BUZZER_ON  = LOW;  // idle level is the opposite, so no current flows while silent
+const uint32_t ALARM_HZ = 2700;  // passive buzzer: alarm and test beeps are a tone at this pitch
+const bool MUSIC_ON = true;      // melody while a pump runs, a "drink ready" phrase after, boot chime
 
 // ---------- tuning ----------
 const int JOY_PUSH = 700, JOY_REST = 300;   // a push = this far from the resting value; back within REST re-arms
@@ -61,6 +63,7 @@ uint32_t seq = 0;
 
 #include "barista_mesh.h"
 #include "barista_web.h"
+#include "barista_music.h"
 
 // ---------- messaging ----------
 void addHeader(JsonDocument& doc) {
@@ -249,8 +252,7 @@ void updateOled() {
 }
 
 void setup() {
-  pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, !BUZZER_ON);
+  buzzerOff();
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
   Serial.begin(115200);
   oledOk = oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -268,6 +270,7 @@ void setup() {
   // A resting value at either end of the scale means that axis is not really connected.
   if (joyCX < 600 || joyCX > 3500) logEvent(String("joystick X rests at ") + joyCX + ": check the VRx wire, 3V3 and GND");
   if (joyCY < 600 || joyCY > 3500) logEvent(String("joystick Y rests at ") + joyCY + ": check the VRy wire, 3V3 and GND");
+  if (MUSIC_ON) musicPlay(TUNE(TUNE_BOOT), false, millis());
 }
 
 void loop() {
@@ -283,5 +286,12 @@ void loop() {
   // Alarm in SAFE once both nodes have been seen. A fresh boot waiting for its first ACK is not a fault.
   bool alarm = sysState == "SAFE" && node1.lastSeen && node3.lastSeen && !(node1.alive && node3.alive && n1Why == "boot");
   bool beep  = now < buzzTestUntil || (alarm && (now / 300) % 2);
-  digitalWrite(BUZZER_PIN, beep ? BUZZER_ON : !BUZZER_ON);
+  // Music follows Node 1's pump: the melody while it runs (Node 1 plays the bass), then "drink ready".
+  static int lastPump = 0;
+  int p = node1.alive ? pump : 0;  // a lost Node 1's last pump value is stale: don't play to it
+  if (MUSIC_ON && p && !lastPump) musicPlay(TUNE(TUNE_MELODY), true, now);
+  if (!p && lastPump) { if (MUSIC_ON && node1.alive) musicPlay(TUNE(TUNE_READY), false, now); else musicStop(); }
+  lastPump = p;
+  if (alarm) musicStop();
+  musicUpdate(now, beep ? ALARM_HZ : 0);
 }

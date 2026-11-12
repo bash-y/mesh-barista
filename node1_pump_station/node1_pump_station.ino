@@ -12,6 +12,7 @@
 // Files:     barista_mesh.h, barista_web.h and dashboard_html.h must sit in this sketch folder.
 
 #include <ArduinoJson.h>
+#include <esp_task_wdt.h>
 
 // Placeholders: set the same values on all 3 nodes locally. Never share the real ones (report, Wokwi, git).
 #define MESH_SSID     "CHANGE_ME_SSID"
@@ -27,7 +28,11 @@ const int RELAY_ON     = HIGH;          // HIGH for active-HIGH relay modules (j
                                         // ON at boot and OFF when a pour starts, yours is active-LOW: use LOW.
 const int LEVEL_PIN[3] = {32, 33, 34};  // ADC1 only: ADC2 reads garbage while the mesh radio is on
 const int BUZZER_PIN   = 13;
-const int BUZZER_ON    = LOW;           // most 3-pin kit buzzers are low-trigger; use HIGH if yours beeps on HIGH
+const int BUZZER_ON    = LOW;           // idle level is the opposite, so no current flows while silent
+const uint32_t ALARM_HZ = 2700;         // passive buzzer: alarm and test beeps are a tone at this pitch
+enum PourSound { POUR_QUIET, POUR_GURGLE, POUR_BASS };
+const PourSound POUR_SOUND = POUR_GURGLE;  // while a pump runs: a coffee machine gurgle, or the walking
+                                           // bass line under Node 2's melody (POUR_BASS), or nothing
 
 // ---------- tuning (justify these in the report) ----------
 const float FLOW_ML_PER_S[3]  = {20.0, 20.0, 20.0};  // calibrate: run each pump 10 s into a measuring cup, mL / 10
@@ -38,6 +43,7 @@ const int   LEVEL_UNLOCK_PCT  = 20;    // must refill above this to unlock (hyst
 const int   CUP_FULL_PCT      = 90;    // Node 3 cup reading that stops the pump
 const float MAX_POUR_ML       = 300;   // reject orders bigger than the cup
 const unsigned long HEARTBEAT_MS = 1000;
+const unsigned long WATCHDOG_MS  = 3000;  // loop() frozen this long -> reset, relays off (same as LOST_MS)
 const unsigned long LOST_MS      = 3000;  // 3 missed heartbeats, direct or relayed
 const unsigned long CUP_STALE_MS = 1500;  // never pour blind longer than this (Node 3 sends 4x/s while pouring)
 
@@ -62,6 +68,7 @@ uint32_t seq = 0;
 
 #include "barista_mesh.h"
 #include "barista_web.h"
+#include "barista_music.h"
 
 // ---------- messaging ----------
 void addHeader(JsonDocument& doc) {
@@ -108,6 +115,8 @@ void stopPump(const String& why) {
   digitalWrite(RELAY_PIN[pumping], !RELAY_ON);
   String name = ING[pumping];
   pumping = -1;
+  musicStop();
+  gurgleStop();
   logEvent(name + " pump OFF - " + why);
   sendStatus();
 }
@@ -117,6 +126,8 @@ void startPump(int i, float ml) {
   pourStart = millis();
   pourMs    = ml / FLOW_ML_PER_S[i] * 1000;
   digitalWrite(RELAY_PIN[i], RELAY_ON);
+  if (POUR_SOUND == POUR_GURGLE) gurgleStart();
+  if (POUR_SOUND == POUR_BASS)   musicPlay(TUNE(TUNE_BASS), true, pourStart);
   logEvent(String(ING[i]) + " pump ON - " + String(ml, 0) + " mL = " + pourMs + " ms");
   sendStatus();
 }
@@ -214,8 +225,7 @@ void onMeshMessage(const String& raw, JsonDocument& doc, int src, int hop, int v
 
 void setup() {
   for (int i = 0; i < 3; i++) { pinMode(RELAY_PIN[i], OUTPUT); digitalWrite(RELAY_PIN[i], !RELAY_ON); }  // pumps OFF first
-  pinMode(BUZZER_PIN, OUTPUT);
-  digitalWrite(BUZZER_PIN, !BUZZER_ON);
+  buzzerOff();
   Serial.begin(115200);
 
   meshBegin(MESH_SSID, MESH_PASSWORD);
@@ -223,10 +233,24 @@ void setup() {
 
   readLevels();
   logEvent("boot -> SAFE, waiting for Nodes 2 + 3 and an operator ACK");
+  // Say why the last run ended, so a watchdog reset or a brownout from a pump shows in the log.
+  esp_reset_reason_t why = esp_reset_reason();
+  if (why == ESP_RST_TASK_WDT || why == ESP_RST_INT_WDT || why == ESP_RST_WDT) logEvent("restarted by the watchdog: the program froze");
+  else if (why == ESP_RST_BROWNOUT) logEvent("restarted by a brownout: supply voltage dipped (pump noise?)");
+  else if (why == ESP_RST_PANIC)    logEvent("restarted after a crash");
+
+  // Watchdog: if loop() stops running for WATCHDOG_MS, the chip resets. setup() turns every relay off
+  // first, so a frozen program can never leave a pump running.
+  esp_task_wdt_config_t wdt = {};
+  wdt.timeout_ms     = WATCHDOG_MS;
+  wdt.trigger_panic  = true;  // reset, don't just print a warning
+  esp_task_wdt_reconfigure(&wdt);
+  esp_task_wdt_add(NULL);      // watch this task (the one running loop())
 }
 
 void loop() {
   static unsigned long lastRead = 0, lastBeat = 0;
+  esp_task_wdt_reset();  // still alive
   meshLoop();
   webLoop();
   unsigned long now = millis();
@@ -236,5 +260,6 @@ void loop() {
   if (now - lastBeat >= HEARTBEAT_MS) { lastBeat = now; sendStatus(); }
   bool alarm = state == SAFE && safeWhy != "boot";  // a fresh boot is not a fault: stay quiet until one happens
   bool beep  = now < buzzTestUntil || (alarm && (now / 300) % 2);
-  digitalWrite(BUZZER_PIN, beep ? BUZZER_ON : !BUZZER_ON);
+  if (alarm) { musicStop(); gurgleStop(); }
+  musicUpdate(now, beep ? ALARM_HZ : 0);
 }

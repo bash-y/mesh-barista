@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Rebuild the web dashboard files in all three sketch folders.
 
-Run it after editing dashboard.html, barista_mesh.h or barista_web.h:   python3 dashboard_src/build_assets.py
-It writes dashboard_html.h (the page, gzipped) and copies barista_mesh.h and barista_web.h into each
+Run it after editing dashboard.html, barista_mesh.h, barista_web.h or barista_music.h:   python3 dashboard_src/build_assets.py
+It writes dashboard_html.h (the page, gzipped) and copies barista_mesh.h, barista_web.h and barista_music.h into each
 node's folder, because an Arduino sketch can only include files from its own folder.
 """
 import gzip
@@ -25,6 +25,6 @@ header = (
 for node in NODES:
     folder = SRC.parent / node
     (folder / "dashboard_html.h").write_text(header)
-    for name in ("barista_mesh.h", "barista_web.h"):
+    for name in ("barista_mesh.h", "barista_web.h", "barista_music.h"):
         shutil.copyfile(SRC / name, folder / name)
-    print(f"{node}: dashboard_html.h ({len(gz)} bytes gzipped), barista_mesh.h, barista_web.h")
+    print(f"{node}: dashboard_html.h ({len(gz)} bytes gzipped), barista_mesh.h, barista_web.h, barista_music.h")
