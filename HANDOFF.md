@@ -89,6 +89,42 @@ the **cream pump's electrical noise**, and **no hardware test of the order queue
     (worst case 225 bytes). The drink menu is defined twice and must match: `DRINK_NAME` / `DRINK_ML` in
     `dashboard_src/barista_web.h` and `DRINKS` in `dashboard_src/dashboard.html`.
 
+## Presentation feedback (2026-11-12): where to take it next
+
+Dr. Okan liked the project. These are his points from the class presentation, as directions for the
+next version rather than demo fixes. Each one builds on the gaps above.
+
+15. **Measurement accuracy is the main thing to develop.** Today a pour is a timed pump burst at an
+    estimated rate (to-do 2) and the level sensors are rough backstops (to-dos 7-8), so we cannot yet
+    say how many mL actually land in the cup. The next version needs a measured accuracy figure (for
+    example, error on repeated 60 mL pours) and a way to improve it.
+16. **Flow-rate ("CFM") control for different liquids.** Liquids such as milk, cream, syrups and
+    alcohol have different viscosities, so one pump moves them at different rates. Look into
+    calibrating flow per liquid, or measuring flow while pouring (a flow sensor) and closing the loop,
+    instead of one fixed `FLOW_ML_PER_S` per pump. Note: CFM (cubic feet per minute) is a gas unit;
+    for liquids we would report mL/s.
+17. **Applications that need accurate doses:** bartending (exact pours per drink) and pharma, for
+    example measuring antibiotics and similar doses. These raise the accuracy bar a lot, and pharma
+    would also need traceability and materials that are safe for medicine. Keep them in mind when
+    choosing what accuracy to aim for.
+18. **Watertight, safe materials.** He was concerned about which materials touch the liquid and
+    whether the build is watertight: tubing, fittings, containers and sensor mounting. The electronics
+    sit next to open water today. Choose food-safe (and, for pharma, medical-grade) parts, seal the
+    joints, and keep the electronics separate from the wet side.
+19. **Pump and container selection.** Choose pumps and reservoirs for the job, not just what was on
+    hand: how accurate and repeatable each pump type is at small volumes (for example, a peristaltic
+    pump keeps the liquid inside the tube, which also helps with materials and cleaning), what liquids
+    it can handle, and container material, shape and size.
+20. **If we move to pressure-plate (weight) sensors, have an accuracy plan.** This is the "load cell
+    under the cup" idea from the Lessons slide. Before committing, work out how to handle calibration
+    with known weights, tare (an empty cup), drift with temperature and time, vibration while the
+    pump runs, liquid density (weight to mL differs per liquid), and the resolution needed for small
+    doses.
+21. **Make it an accessory, not a replacement.** Position Mesh Barista as an add-on to the machines
+    people already own, not a coffee machine that replaces them. That means designing adapters and
+    couplings for things like Nespresso and Keurig machines, for example adding milk or cream to the
+    cup a machine has just made.
+
 ## How to work on the hardware
 
 **Board:** generic ESP32 Dev Module, FQBN `esp32:esp32:esp32` (core `esp32:esp32` 3.3.x).
