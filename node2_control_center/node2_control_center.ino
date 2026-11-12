@@ -25,7 +25,7 @@ const char* ZONE    = "control";
 const char* ING[3]  = {"coffee", "milk", "cream"};
 
 // ---------- pins ----------
-const int JOY_X_PIN  = 34;   // ADC1 only: ADC2 reads garbage while the mesh radio is on
+const int JOY_X_PIN  = 32;   // ADC1 only: ADC2 reads garbage while the mesh radio is on
 const int JOY_Y_PIN  = 35;
 const int JOY_SW_PIN = 27;   // LOW when pressed
 const int BUZZER_PIN = 25;

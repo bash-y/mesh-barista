@@ -53,7 +53,7 @@ Step-by-step wiring with connection diagrams, a power-up checklist and troublesh
 buzzer on GPIO 13. Pumps run from their own supply through each relay's COM and NO, with the supply
 ground tied to ESP32 GND.
 
-**Node 2:** joystick VRx GPIO 34, VRy GPIO 35, SW GPIO 27, powered from 3V3. OLED SDA 21 / SCL 22.
+**Node 2:** joystick VRx GPIO 32, VRy GPIO 35, SW GPIO 27, powered from 3V3. OLED SDA 21 / SCL 22.
 Buzzer GPIO 25.
 
 **Node 3:** cup water sensor GPIO 32. OLED SDA 21 / SCL 22. RGB LED (common anode, V to 3V3)

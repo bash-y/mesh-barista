@@ -76,7 +76,7 @@ Parts: ESP32, joystick, OLED (4-pin I2C), buzzer.
 
 | Part | Part pin | ESP32 pin |
 |---|---|---|
-| Joystick | VRx | GPIO 34 |
+| Joystick | VRx | GPIO 32 |
 | Joystick | VRy | GPIO 35 |
 | Joystick | SW | GPIO 27 |
 | Joystick | +5V | **3V3** |
@@ -146,5 +146,5 @@ Do these in order. Each one uses the dashboard: join the Wi-Fi the nodes create 
 | Relay does not click at all | Relay VCC not on VIN (5V), or a 5V module that will not switch from a 3.3 V signal. |
 | Level stays at 0 % or 100 % | Sensor on the wrong pin, or `*_RAW_DRY` / `*_RAW_FULL` not calibrated yet. |
 | OLED blank | SDA and SCL swapped, or a screen that is not at address 0x3C. |
-| Menu will not move | Joystick was held during power-up, or VRx is not reaching GPIO 34. |
+| Menu will not move | Joystick was held during power-up, or VRx is not reaching GPIO 32. |
 | A node shows LOST | That board is unpowered, or flashed with a different `MESH_SSID` or `MESH_CHANNEL`. |
