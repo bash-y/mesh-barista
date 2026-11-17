@@ -10,7 +10,7 @@ Team: Sebastian "Bash" Cadena, Daniel Critchlow Jr. Not GRIM-01RE / GRIM-02RE (d
 - Each node folder: <node>.ino, barista_mesh.h, barista_web.h, dashboard_html.h. The mesh/web headers and dashboard_html.h are copies, generated from dashboard_src/ (`python3 dashboard_src/build_assets.py`). Edit dashboard_src/, never the copies.
 - harness/ host-side tests: `harness/run.sh` (firmware sim in C++ with Arduino stubs, then Playwright browser test of the dashboard). Both must pass before any push.
 - docs/ wiring guide + presentation sources; WIRING.md wiring instructions.
-- (3D parts live outside the repo for now: STL generators in /home/claude/holder, copy them into stl/ if wanted.)
+- stl/mesh_barista_unibody_H2C.3mf: Keurig-style body, 8 parts on 7 plates for the Bambu H2C (330x320). Generators (make_unibody.py, make_3mf.py) are outside the repo in /home/claude/holder.
 
 ## Design rules
 - ESP-NOW broadcast, own one-hop relay (seq dedupe, hop count), 250-byte frame limit (largest ~175 B). Callback signature differs for ESP32 core 2.x vs 3.x.
